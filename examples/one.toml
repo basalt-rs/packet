@@ -1,0 +1,29 @@
+default_language = "Python312"
+languages = ["Python3XX", "JavaXX", "JavaScript", "TypeScript"]
+
+[[problems]]
+title = "Reversing a string"
+description = '''
+Reversing a string is one of the most *basic* algorithmic
+problems for a beginner computer science student to solve.
+
+Solve it.
+''''
+
+[[problems.test]]
+input = "hello"
+output = "olleh"
+visible = true
+
+[[problems.test]]
+input = "world"
+output = "dlrow"
+visible = true
+
+[[problems.test]]
+input = ""
+output = ""
+
+[[problems.test]]
+input = "aa"
+output = "aa"
