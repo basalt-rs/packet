@@ -3,8 +3,8 @@ preamble = '''
 This packet includes problems of a difficulty *vastly*
 surpassing the capabilities of the average computer
 science student. Be wary as these problems will
-certainly give you great intellectual trouble. There 
-is little hope for anyone without a Ph.D in computer 
+certainly give you great intellectual trouble. There
+is little hope for anyone without a Ph.D in computer
 science.
 
 If you decide to attempt these problems anyways, good
@@ -12,6 +12,18 @@ luck. You will be rewarded for swiftness in your answers.
 '''
 default_language = "Python312"
 languages = ["Python3XX", "JavaXX", "JavaScript", "TypeScript"]
+
+[[authentication.admins]]
+name = "Teacher"
+password = "abc123"
+
+[[authentication.participants]]
+name = "Student One"
+password = "123abc"
+
+[[authentication.participants]]
+name = "Student Two"
+password = "deadbeef"
 
 [[problems]]
 title = "Reversing a string"
