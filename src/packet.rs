@@ -4,44 +4,44 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct User {
-    name: String,
-    password: String,
+    pub name: String,
+    pub password: String,
     #[serde(default = "default_false")]
-    password_hashed: bool,
+    pub password_hashed: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Authentication {
-    admins: Vec<User>,
-    participants: Vec<User>,
+    pub admins: Vec<User>,
+    pub participants: Vec<User>,
 }
 
 /// Represents a Packet containing questions and
 /// configurations
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Packet {
-    title: Option<String>,
-    preamble: Option<String>,
-    default_language: Option<String>,
-    languages: Option<Vec<String>>,
-    problems: Vec<Problem>,
-    authentication: Authentication,
+    pub title: Option<String>,
+    pub preamble: Option<String>,
+    pub default_language: Option<String>,
+    pub languages: Option<Vec<String>>,
+    pub problems: Vec<Problem>,
+    pub authentication: Authentication,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Problem {
-    default_language: Option<String>,
-    languages: Option<String>,
-    title: Option<String>,
-    tests: Vec<Test>,
+    pub default_language: Option<String>,
+    pub languages: Option<String>,
+    pub title: Option<String>,
+    pub tests: Vec<Test>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Test {
-    input: String,
-    output: String,
+    pub input: String,
+    pub output: String,
     #[serde(default = "default_false")]
-    visible: bool,
+    pub visible: bool,
 }
 
 fn default_false() -> bool {
