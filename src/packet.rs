@@ -20,7 +20,7 @@ pub struct Authentication {
 /// configurations
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Packet {
-    pub title: Option<String>,
+    pub title: String,
     pub preamble: Option<String>,
     pub default_language: Option<String>,
     pub languages: Option<Vec<String>>,
@@ -54,6 +54,6 @@ mod tests {
     #[test]
     fn packets_parse_correctly() {
         // parse example one
-        let pkt: Packet = toml::from_str(include_str!("../examples/one.toml")).unwrap();
+        let _: Packet = toml::from_str(include_str!("../examples/one.toml")).unwrap();
     }
 }
