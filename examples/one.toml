@@ -27,11 +27,7 @@ eval $(opam env)
 
 [languages]
 python3 = "enabled"
-ocaml = { compile = "ocamlc -o out {{SOURCEFLIE}}", run = "./out" }
-default = "python3"
-
-default_language = "Python312"
-languages = ["Python3XX", "JavaXX", "JavaScript", "TypeScript"]
+ocaml = { build = "ocamlc -o out {{SOURCEFLIE}}", run = "./out" }
 
 [[authentication.admins]]
 name = "Teacher"

@@ -1,6 +1,6 @@
 //! Contains tools related to packets.
 
-use std::{fs, path::PathBuf};
+use std::{collections::HashMap, fs, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -30,6 +30,18 @@ pub struct Setup {
     init: Option<String>,
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub enum Language {
+    #[serde(alias = "enabled", alias = "*")]
+    Enabled,
+    #[serde(untagged)]
+    Custom {
+        name: Option<String>,
+        build: Option<String>,
+        run: Option<String>,
+    },
+}
+
 /// Represents a Packet containing questions and
 /// configurations
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -40,7 +52,7 @@ pub struct Packet {
     pub preamble: Option<String>,
     /// includes information for setting up the environment
     pub setup: Option<Setup>,
-    pub languages: Option<Vec<String>>,
+    pub languages: HashMap<String, Language>,
     pub problems: Vec<Problem>,
     pub authentication: Authentication,
 }
