@@ -1,3 +1,4 @@
+# Specify information about the packet itself
 title = "Example Packet"
 preamble = '''
 This packet includes problems of a difficulty *vastly*
@@ -10,6 +11,25 @@ science.
 If you decide to attempt these problems anyways, good
 luck. You will be rewarded for swiftness in your answers.
 '''
+
+[setup]
+#import = "./setup.toml"
+#import_install = "./install.sh"
+#import_init = "./init.sh"
+install = '''
+apt-get install opam
+'''
+
+init = '''
+opam init -y
+eval $(opam env)
+'''
+
+[languages]
+python3 = "enabled"
+ocaml = { compile = "ocamlc -o out {{SOURCEFLIE}}", run = "./out" }
+default = "python3"
+
 default_language = "Python312"
 languages = ["Python3XX", "JavaXX", "JavaScript", "TypeScript"]
 
@@ -18,11 +38,11 @@ name = "Teacher"
 password = "abc123"
 
 [[authentication.participants]]
-name = "Student One"
+name = "StudentOne"
 password = "123abc"
 
 [[authentication.participants]]
-name = "Student Two"
+name = "StudentTwo"
 password = "deadbeef"
 
 [[problems]]

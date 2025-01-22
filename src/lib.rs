@@ -14,17 +14,32 @@ pub struct User {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Authentication {
+    /// Administrators in charge of managing the competition
     pub admins: Vec<User>,
+    /// Competitors participating in the competition
     pub participants: Vec<User>,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub struct Setup {
+    /// Specifies what commands are to be run when building the container
+    /// to ensure dependencies are installed.
+    setup: Option<String>,
+    /// Specifies commands to run before running basalt-server so that
+    /// dependencies are enabled properly.
+    init: Option<String>,
 }
 
 /// Represents a Packet containing questions and
 /// configurations
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Packet {
+    /// title of the packet
     pub title: String,
+    /// basic information about the packet
     pub preamble: Option<String>,
-    pub default_language: Option<String>,
+    /// includes information for setting up the environment
+    pub setup: Option<Setup>,
     pub languages: Option<Vec<String>>,
     pub problems: Vec<Problem>,
     pub authentication: Authentication,
