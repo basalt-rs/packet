@@ -24,10 +24,10 @@ pub struct Authentication {
 pub struct Setup {
     /// Specifies what commands are to be run when building the container
     /// to ensure dependencies are installed.
-    setup: Option<String>,
+    pub setup: Option<String>,
     /// Specifies commands to run before running basalt-server so that
     /// dependencies are enabled properly.
-    init: Option<String>,
+    pub init: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
