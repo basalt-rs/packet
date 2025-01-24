@@ -161,7 +161,7 @@ pub struct Config {
     /// Accounts that will be granted access to the server
     pub accounts: Accounts,
     /// The packet for this competition
-    pub packet: Packet,
+    pub packet: RawOrImport<Packet>,
 }
 
 impl Config {

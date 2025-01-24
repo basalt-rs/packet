@@ -32,6 +32,7 @@ password = "deadbeef"
 
 # Specify information about the packet itself
 [packet]
+# import = "./packet.toml"
 title = "Example Packet"
 preamble = '''
 This packet includes problems of a difficulty *vastly*
@@ -46,6 +47,7 @@ luck. You will be rewarded for swiftness in your answers.
 '''
 
 [[packet.problems]]
+# import = "./problem1.toml"
 title = "Reversing a string"
 description = '''
 Reversing a string is one of the most *basic* algorithmic
