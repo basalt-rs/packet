@@ -108,6 +108,9 @@ pub enum Language {
     /// Use the recommended version of this language
     #[serde(alias = "*")]
     Enabled,
+    /// Use a custom version of this language (will be checked to be valid by basalt-cli)
+    #[serde(untagged)]
+    Version(String),
     /// A language that we do not have a configuration for
     #[serde(untagged)]
     Custom {

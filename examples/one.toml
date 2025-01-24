@@ -16,6 +16,7 @@ eval $(opam env)
 
 [languages]
 python3 = "enabled"
+java = "21"
 ocaml = { build = "ocamlc -o out {{SOURCEFLIE}}", run = "./out" }
 
 [[accounts.admins]]
