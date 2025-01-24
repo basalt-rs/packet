@@ -16,6 +16,10 @@ pub(crate) fn default_true() -> bool {
     true
 }
 
+pub(crate) fn default_port() -> u16 {
+    8517
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
 #[serde(untagged)] // TODO: This is mildly fucking up the error messages
 pub enum RawOrImport<T> {
@@ -158,6 +162,7 @@ pub struct Config {
     /// Configuration for setting up the docker container and starting the server
     pub setup: Option<RawOrImport<Setup>>,
     /// Port on which the server will be hosted
+    #[serde(default = "default_port")]
     pub port: u16,
     /// List of languages available for the server
     pub languages: BTreeMap<String, Language>,
