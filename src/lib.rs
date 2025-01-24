@@ -165,9 +165,9 @@ pub struct Config {
     #[serde(default = "default_port")]
     pub port: u16,
     /// List of languages available for the server
-    pub languages: BTreeMap<String, Language>,
+    pub languages: RawOrImport<BTreeMap<String, Language>>,
     /// Accounts that will be granted access to the server
-    pub accounts: Accounts,
+    pub accounts: RawOrImport<Accounts>,
     /// The packet for this competition
     pub packet: RawOrImport<Packet>,
 }

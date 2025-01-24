@@ -15,7 +15,7 @@ pub struct Problem {
     /// The title for this specific problem
     pub title: String,
     /// The description of this problem (supports markdown)
-    pub description: Option<String>,
+    pub description: Option<RawOrImport<String>>,
     /// The tests that will be used on this problem
     pub tests: Vec<Test>,
 }
@@ -53,7 +53,7 @@ pub struct Packet {
     /// Title of the packet
     pub title: String,
     /// Information about the packet that will be included at the top of the file
-    pub preamble: Option<String>,
+    pub preamble: Option<RawOrImport<String>>,
     /// The list of problems for this
     pub problems: Vec<RawOrImport<Problem>>,
 }
