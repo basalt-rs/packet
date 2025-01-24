@@ -7,7 +7,7 @@ edition = "2021"
 serde = { version = "1.0.216", features = ["derive"] }
 thiserror = "2.0.11"
 toml_edit = { version = "0.22.22", features = ["serde"] }
-tokio = { version = "1.42.0", features = ["fs"], optional = true }
+tokio = { version = "1.42.0", features = ["fs", "io-util"], optional = true }
 miette = { version = "7.4.0", features = ["fancy"] }
 ron = "0.8.1"
 
