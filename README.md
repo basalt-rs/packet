@@ -1,2 +1,3 @@
-# packet
-Packet specification tools
+# Bedrock
+
+The fundamental configurations for everything basalt.
