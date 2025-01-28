@@ -95,10 +95,7 @@ impl<'de> Visitor<'de> for LanguageMapVisitor {
                         )));
                     }
 
-                    Language::BuiltIn {
-                        language,
-                        version, // TODO: Enforce the language version here
-                    }
+                    Language::BuiltIn { language, version }
                 }
                 TomlLanguage::Custom {
                     name,
