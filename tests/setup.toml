@@ -1,0 +1,8 @@
+install = '''
+apt-get install opam
+'''
+
+init = '''
+opam init -y
+eval $(opam env)
+'''

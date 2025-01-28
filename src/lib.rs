@@ -1,9 +1,14 @@
-use std::{collections::BTreeMap, fs, io::Read, path::PathBuf};
+use std::io::Read;
 
+use language::LanguageSet;
 use miette::{Diagnostic, LabeledSpan, NamedSource, SourceCode};
 use packet::Packet;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use roi::RawOrImport;
+use serde::{Deserialize, Serialize};
+
+pub mod language;
 pub mod packet;
+pub mod roi;
 
 #[cfg(test)]
 mod tests;
@@ -18,62 +23,6 @@ pub(crate) fn default_true() -> bool {
 
 pub(crate) fn default_port() -> u16 {
     8517
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
-#[serde(untagged)] // TODO: This is mildly fucking up the error messages
-pub enum RawOrImport<T> {
-    /// The type has been directly stated in the current file
-    Raw(T),
-    /// The contents have been placed into another file
-    Import { import: PathBuf },
-}
-
-impl<T> RawOrImport<T>
-where
-    T: DeserializeOwned,
-{
-    /// Get the contents of this item if it's [`RawOrImport::Raw`], otherwise get the contents from
-    /// file
-    pub fn get(self) -> Result<T, ConfigReadError> {
-        match self {
-            RawOrImport::Raw(t) => Ok(t),
-            RawOrImport::Import { import } => {
-                let content = fs::read_to_string(&import)?;
-                toml_edit::de::from_str(&content).map_err(|e| {
-                    ConfigReadError::malformed(
-                        NamedSource::new(import.display().to_string(), content)
-                            .with_language("TOML"),
-                        e,
-                    )
-                })
-            }
-        }
-    }
-
-    /// Get the contents of this item if it's [`RawOrImport::Raw`], otherwise get the contents from
-    /// file
-    #[cfg(feature = "tokio")]
-    pub async fn get_async(self) -> Result<T, ConfigReadError> {
-        match self {
-            RawOrImport::Raw(t) => Ok(t),
-            RawOrImport::Import { import } => {
-                let content = tokio::fs::read_to_string(&import).await?;
-                toml_edit::de::from_str(&content).map_err(|e| {
-                    ConfigReadError::malformed(
-                        NamedSource::new(import.display().to_string(), content),
-                        e,
-                    )
-                })
-            }
-        }
-    }
-}
-
-impl<T> From<T> for RawOrImport<T> {
-    fn from(value: T) -> Self {
-        Self::Raw(value)
-    }
 }
 
 /// Authentication details for a specific user (competitor or admin)
@@ -104,25 +53,6 @@ pub struct Setup {
     /// Specifies commands to run before running basalt-server so that dependencies are enabled
     /// properly.
     pub init: Option<RawOrImport<String>>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
-#[serde(rename_all = "kebab-case", deny_unknown_fields)]
-pub enum Language {
-    /// Use the recommended version of this language
-    #[serde(alias = "*")]
-    Enabled,
-    /// Use a custom version of this language (will be checked to be valid by basalt-cli)
-    #[serde(untagged)]
-    Version(String),
-    /// A language that we do not have a configuration for
-    #[serde(untagged)]
-    Custom {
-        // TODO: Custom command deserialiser
-        name: Option<String>,
-        build: Option<String>,
-        run: String,
-    },
 }
 
 #[derive(Debug, thiserror::Error, Diagnostic)]
@@ -165,7 +95,7 @@ pub struct Config {
     #[serde(default = "default_port")]
     pub port: u16,
     /// List of languages available for the server
-    pub languages: RawOrImport<BTreeMap<String, Language>>,
+    pub languages: RawOrImport<LanguageSet>,
     /// Accounts that will be granted access to the server
     pub accounts: RawOrImport<Accounts>,
     /// The packet for this competition
