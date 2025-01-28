@@ -1,30 +1,75 @@
 mod language_set;
 pub use language_set::LanguageSet;
 
-use phf::phf_map;
+use phf::{phf_map, phf_ordered_map};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use strum::VariantNames;
 
-static LANG_NAMES: phf::Map<&'static str, BuiltInLanguage> = phf_map! {
-    "python3" => BuiltInLanguage::Python3,
-    "java" => BuiltInLanguage::Java,
-    "javascript" => BuiltInLanguage::JavaScript,
-    "rust" => BuiltInLanguage::Rust,
+struct BIL {
+    builtin: BuiltInLanguage,
+    source_file: &'static str,
+    versions: phf::OrderedMap<&'static str, CommandCombo>,
+}
+
+static BUILTINS: phf::Map<&'static str, BIL> = phf_map! {
+    "python3" => BIL {
+        builtin: BuiltInLanguage::Python3,
+        source_file: "solution.py",
+        versions: phf_ordered_map! {
+            "latest" => CommandCombo {
+                build: None,
+                run: "python3 ./solution.py",
+            }
+        },
+    },
+    "java" => BIL {
+        builtin: BuiltInLanguage::Java,
+        source_file: "Solution.java",
+        versions: phf_ordered_map! {
+            "8" => CommandCombo {
+                build: Some("/lib/jvm/java-8-openjdk/bin/javac Solution.java"),
+                run: "/lib/jvm/java-8-openjdk/bin/java Solution"
+            },
+            "11" => CommandCombo {
+                build: Some("/lib/jvm/java-11-openjdk/bin/javac Solution.java"),
+                run: "/lib/jvm/java-11-openjdk/bin/java Solution"
+            },
+            "23" => CommandCombo {
+                build: Some("/lib/jvm/java-23-openjdk/bin/javac Solution.java"),
+                run: "/lib/jvm/java-23-openjdk/bin/java Solution"
+            },
+        },
+    },
+    "javascript" => BIL {
+        builtin: BuiltInLanguage::JavaScript,
+        source_file: "solution.js",
+        versions: phf_ordered_map! {
+            "latest" => CommandCombo {
+                build: None,
+                run: "nodejs solution.js"
+            }
+        },
+    },
+    "rust" => BIL {
+        builtin: BuiltInLanguage::Rust,
+        source_file: "solution.rs",
+        versions: phf_ordered_map! {
+            "latest" => CommandCombo {
+                build: Some("rustc -o solution solution.rs"),
+                run: "./solution"
+            }
+        },
+    },
 };
 
 struct CommandCombo {
-    build: &'static str,
+    build: Option<&'static str>,
     run: &'static str,
 }
 
-// version : (build command, run command)
-static JAVA_VERSIONS: phf::Map<&'static str, CommandCombo> = phf_map! {
-    "8" => CommandCombo { build: "/lib/jvm/java-8-openjdk/bin/javac Solution.java", run: "/lib/jvm/java-8-openjdk/bin/java Solution" },
-    "11" => CommandCombo { build: "/lib/jvm/java-11-openjdk/bin/javac Solution.java", run: "/lib/jvm/java-11-openjdk/bin/java Solution" },
-    "23" => CommandCombo { build: "/lib/jvm/java-23-openjdk/bin/javac Solution.java", run: "/lib/jvm/java-23-openjdk/bin/java Solution" },
-};
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, VariantNames)]
+#[strum(serialize_all = "lowercase")]
 pub enum BuiltInLanguage {
     Python3,
     Java,
@@ -33,24 +78,26 @@ pub enum BuiltInLanguage {
 }
 
 impl BuiltInLanguage {
-    pub const BUILTINS: [&'static str; 4] = [
-        Self::Python3.as_str(),
-        Self::Java.as_str(),
-        Self::JavaScript.as_str(),
-        Self::Rust.as_str(),
-    ];
-
-    pub fn has_version(self, version: Version) -> bool {
-        match (self, version) {
-            (Self::Python3, Version::Latest) => true,
-            (Self::Python3, _) => false,
-            (Self::Java, Version::Latest) => true,
-            (Self::Java, Version::Specific(v)) => JAVA_VERSIONS.contains_key(&v),
-            (Self::JavaScript, Version::Latest) => true,
-            (Self::JavaScript, _) => false,
-            (Self::Rust, Version::Latest) => true,
-            (Self::Rust, _) => false,
+    pub fn has_version(self, version: &Version) -> Result<(), Vec<&str>> {
+        let bil = &BUILTINS[self.as_str()];
+        match version {
+            Version::Latest => Ok(()),
+            Version::Specific(v) => {
+                if bil.versions.contains_key(v) {
+                    Ok(())
+                } else {
+                    Err(bil.versions.keys().map(|s| *s).collect())
+                }
+            }
         }
+    }
+
+    pub fn joined_variants() -> String {
+        BuiltInLanguage::VARIANTS
+            .into_iter()
+            .map(|s| format!("'{}'", s))
+            .collect::<Vec<_>>()
+            .join(", ")
     }
 
     pub const fn as_str(self) -> &'static str {
@@ -71,43 +118,36 @@ impl BuiltInLanguage {
         }
     }
 
-    pub const fn source_file(self) -> &'static str {
-        match self {
-            BuiltInLanguage::Python3 => "solution.py",
-            BuiltInLanguage::Java => "Solution.java",
-            BuiltInLanguage::JavaScript => "solution.js",
-            BuiltInLanguage::Rust => "solution.rs",
-        }
+    pub fn source_file(self) -> &'static str {
+        BUILTINS[self.as_str()].source_file
     }
 
     pub fn build_command(self, version: &Version) -> Option<&str> {
-        match self {
-            Self::Python3 => None,
-            Self::Java => match version {
-                Version::Latest => Some(JAVA_VERSIONS["21"].build),
-                Version::Specific(v) => Some(JAVA_VERSIONS[v].build),
-            },
-            Self::JavaScript => None,
-            Self::Rust => Some("rustc -o solution solution.rs"),
+        let bil = &BUILTINS[self.as_str()];
+        match version {
+            Version::Latest => bil.versions.values().last()?.build,
+            Version::Specific(v) => bil.versions[v].build,
         }
     }
 
     pub fn run_command(self, version: &Version) -> &str {
-        match self {
-            Self::Python3 => "python3 solution.py",
-            Self::Java => match version {
-                Version::Latest => JAVA_VERSIONS["21"].run,
-                Version::Specific(v) => JAVA_VERSIONS[v].run,
-            },
-            Self::JavaScript => "node solution.js",
-            Self::Rust => "./solution",
+        let bil = &BUILTINS[self.as_str()];
+        match version {
+            Version::Latest => {
+                bil.versions
+                    .values()
+                    .last()
+                    .expect("all language must have at least one version")
+                    .run
+            }
+            Version::Specific(v) => bil.versions[v].run,
         }
     }
 }
 
 impl From<&str> for BuiltInLanguage {
     fn from(value: &str) -> Self {
-        LANG_NAMES[value]
+        BUILTINS[value].builtin
     }
 }
 
@@ -115,7 +155,7 @@ impl FromStr for BuiltInLanguage {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        LANG_NAMES.get(s).ok_or(()).copied()
+        BUILTINS.get(s).map(|b| b.builtin).ok_or(())
     }
 }
 

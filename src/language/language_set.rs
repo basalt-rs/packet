@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::language::Version;
 
-use super::Language;
+use super::{BuiltInLanguage, Language};
 
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct LanguageSet {
@@ -64,16 +64,42 @@ impl<'de> Visitor<'de> for LanguageMapVisitor {
             let val = match value {
                 TomlLanguage::Latest => Language::BuiltIn {
                     language: key.parse().map_err(|()| {
-                        serde::de::Error::custom(format!("Unknown built-in language: '{}'", key))
+                        serde::de::Error::custom(format!(
+                            "Unknown built-in language: '{}'. Known languages: {}",
+                            key,
+                            BuiltInLanguage::joined_variants()
+                        ))
                     })?,
                     version: Version::Latest,
                 },
-                TomlLanguage::Version(v) => Language::BuiltIn {
-                    language: key.parse().map_err(|()| {
-                        serde::de::Error::custom(format!("Unknown built-in language: '{}'", key))
-                    })?,
-                    version: Version::Specific(v.into()), // TODO: Enforce the language version here
-                },
+                TomlLanguage::Version(v) => {
+                    let language: BuiltInLanguage = key.parse().map_err(|()| {
+                        serde::de::Error::custom(format!(
+                            "Unknown built-in language: '{}'.  Known languages: {}",
+                            key,
+                            BuiltInLanguage::joined_variants()
+                        ))
+                    })?;
+                    let version = Version::Specific(v.clone().into());
+
+                    if let Err(versions) = language.has_version(&version) {
+                        return Err(serde::de::Error::custom(format!(
+                            "Unknown {} version: '{}'.  Known versions: {}",
+                            key,
+                            v,
+                            versions
+                                .into_iter()
+                                .map(|s| format!("'{}'", s))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )));
+                    }
+
+                    Language::BuiltIn {
+                        language,
+                        version, // TODO: Enforce the language version here
+                    }
+                }
                 TomlLanguage::Custom {
                     name,
                     build,
