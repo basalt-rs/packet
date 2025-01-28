@@ -12,7 +12,7 @@ fn parse() -> miette::Result<()> {
 #[test]
 fn parse_get() -> miette::Result<()> {
     let config = Config::from_str(FILE, Some("imports.toml"))?;
-    let setup = config.setup.map(|roi| roi.get()).unwrap().unwrap();
+    let setup = config.setup.unwrap().get().unwrap();
     let setup_toml = toml_edit::de::from_str(SETUP_FILE).unwrap();
     assert_eq!(setup, setup_toml);
     Ok(())
