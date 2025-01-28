@@ -85,7 +85,7 @@ impl BuiltInLanguage {
             Self::Python3 => None,
             Self::Java => match version {
                 Version::Latest => Some(JAVA_VERSIONS["21"].build),
-                Version::Specific(v) => Some(JAVA_VERSIONS[&v].build),
+                Version::Specific(v) => Some(JAVA_VERSIONS[v].build),
             },
             Self::JavaScript => None,
             Self::Rust => Some("rustc -o solution solution.rs"),
@@ -97,7 +97,7 @@ impl BuiltInLanguage {
             Self::Python3 => "python3 solution.py",
             Self::Java => match version {
                 Version::Latest => JAVA_VERSIONS["21"].run,
-                Version::Specific(v) => JAVA_VERSIONS[&v].run,
+                Version::Specific(v) => JAVA_VERSIONS[v].run,
             },
             Self::JavaScript => "node solution.js",
             Self::Rust => "./solution",
@@ -144,28 +144,28 @@ impl Language {
     pub fn name(&self) -> &str {
         match self {
             Language::BuiltIn { language, .. } => language.name(),
-            Language::Custom { name, .. } => &name,
+            Language::Custom { name, .. } => name,
         }
     }
 
     pub fn source_file(&self) -> &str {
         match self {
             Language::BuiltIn { language, .. } => language.source_file(),
-            Language::Custom { source_file, .. } => &source_file,
+            Language::Custom { source_file, .. } => source_file,
         }
     }
 
     pub fn build_command(&self) -> Option<&str> {
         match self {
-            Language::BuiltIn { language, version } => language.build_command(&version),
+            Language::BuiltIn { language, version } => language.build_command(version),
             Language::Custom { build, .. } => build.as_deref(),
         }
     }
 
     pub fn run_command(&self) -> &str {
         match self {
-            Language::BuiltIn { language, version } => language.run_command(&version),
-            Language::Custom { run, .. } => &run,
+            Language::BuiltIn { language, version } => language.run_command(version),
+            Language::Custom { run, .. } => run,
         }
     }
 }

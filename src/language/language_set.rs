@@ -10,7 +10,7 @@ use crate::language::Version;
 
 use super::Language;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct LanguageSet {
     inner: HashSet<Language>,
 }
