@@ -22,8 +22,13 @@ where
     where
         D: serde::Deserializer<'de>,
     {
+        // TODO:
+        // These gems are stolen from the generated output of `#[derive(Deserialize)]`
+        // This is probably not the ideal solution, but it works, so we may want to change this in
+        // the future.
         let content = serde::__private::de::Content::deserialize(deserializer)?;
         let de = serde::__private::de::ContentRefDeserializer::<D::Error>::new(&content);
+
         if let Ok(import) = Import::deserialize(de) {
             return Ok(RawOrImport::Import {
                 import: import.import,
