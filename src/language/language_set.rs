@@ -168,7 +168,7 @@ impl Serialize for LanguageSet {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 enum TomlLanguage<'a> {
-    #[serde(alias = "*", alias = "enabled")]
+    #[serde(alias = "*")]
     Latest,
     #[serde(untagged)]
     Version(Cow<'a, str>),

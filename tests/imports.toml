@@ -4,7 +4,7 @@ port = 80
 import = "./tests/setup.toml"
 
 [languages]
-python3 = "enabled"
+python3 = "latest"
 java = "23"
 ocaml = { build = "ocamlc -o out solution.ml", run = "./out", source_file = "solution.ml" }
 
