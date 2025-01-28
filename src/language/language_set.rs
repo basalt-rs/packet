@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fmt;
 use std::ops::{Deref, DerefMut};
@@ -59,7 +60,7 @@ impl<'de> Visitor<'de> for LanguageMapVisitor {
         let mut map = LanguageSet::with_capacity(access.size_hint().unwrap_or(0));
 
         // TODO: Spans or something for better error messages
-        while let Some((key, value)) = access.next_entry::<String, TomlLanguage>()? {
+        while let Some((key, value)) = access.next_entry::<Cow<'_, str>, TomlLanguage>()? {
             let val = match value {
                 TomlLanguage::Latest => Language::BuiltIn {
                     language: key.parse().map_err(|()| {
@@ -71,7 +72,7 @@ impl<'de> Visitor<'de> for LanguageMapVisitor {
                     language: key.parse().map_err(|()| {
                         serde::de::Error::custom(format!("Unknown built-in language: '{}'", key))
                     })?,
-                    version: Version::Specific(v), // TODO: Enforce the language version here
+                    version: Version::Specific(v.into()), // TODO: Enforce the language version here
                 },
                 TomlLanguage::Custom {
                     name,
@@ -79,11 +80,11 @@ impl<'de> Visitor<'de> for LanguageMapVisitor {
                     run,
                     source_file,
                 } => Language::Custom {
-                    name: name.unwrap_or_else(|| key.clone()),
-                    raw_name: key,
-                    build,
-                    run,
-                    source_file,
+                    name: name.unwrap_or(key.clone()).into_owned(),
+                    raw_name: key.into_owned(),
+                    build: build.map(Cow::into_owned),
+                    run: run.into_owned(),
+                    source_file: source_file.into_owned(),
                 },
             };
 
@@ -115,13 +116,7 @@ impl Serialize for LanguageSet {
                     language: name,
                     version: value,
                 } => {
-                    map.serialize_entry(
-                        name.as_str(),
-                        &match value {
-                            Version::Latest => TomlLanguage::Latest,
-                            Version::Specific(v) => TomlLanguage::Version(v.clone()),
-                        },
-                    )?;
+                    map.serialize_entry(name.as_str(), &TomlLanguage::from(value))?;
                 }
                 Language::Custom {
                     raw_name,
@@ -133,10 +128,10 @@ impl Serialize for LanguageSet {
                     map.serialize_entry(
                         raw_name,
                         &TomlLanguage::Custom {
-                            name: Some(name.clone()),
-                            build: build.clone(),
-                            run: run.clone(),
-                            source_file: source_file.clone(),
+                            name: Some(name.into()),
+                            build: build.as_ref().map(Into::into),
+                            run: run.into(),
+                            source_file: source_file.into(),
                         },
                     )?;
                 }
@@ -149,17 +144,26 @@ impl Serialize for LanguageSet {
 /// Language as represented in the toml file
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
-enum TomlLanguage {
+enum TomlLanguage<'a> {
     #[serde(alias = "*", alias = "enabled")]
     Latest,
     #[serde(untagged)]
-    Version(String),
+    Version(Cow<'a, str>),
     #[serde(untagged)]
     Custom {
         // TODO: Custom command deserialiser
-        name: Option<String>,
-        build: Option<String>,
-        run: String,
-        source_file: String,
+        name: Option<Cow<'a, str>>,
+        build: Option<Cow<'a, str>>,
+        run: Cow<'a, str>,
+        source_file: Cow<'a, str>,
     },
+}
+
+impl<'a> From<&'a Version> for TomlLanguage<'a> {
+    fn from(value: &'a Version) -> Self {
+        match value {
+            Version::Latest => TomlLanguage::Latest,
+            Version::Specific(v) => TomlLanguage::Version(v.into()),
+        }
+    }
 }
