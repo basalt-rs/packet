@@ -6,15 +6,15 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use strum::VariantNames;
 
-struct BIL {
+struct Builtin {
     builtin: BuiltInLanguage,
     source_file: &'static str,
     versions: phf::OrderedMap<&'static str, CommandCombo>,
 }
 
 // TODO: enforce minimum version count of 1 at compile time
-static BUILTINS: phf::Map<&'static str, BIL> = phf_map! {
-    "python3" => BIL {
+static BUILTINS: phf::Map<&'static str, Builtin> = phf_map! {
+    "python3" => Builtin {
         builtin: BuiltInLanguage::Python3,
         source_file: "solution.py",
         versions: phf_ordered_map! {
@@ -24,7 +24,7 @@ static BUILTINS: phf::Map<&'static str, BIL> = phf_map! {
             }
         },
     },
-    "java" => BIL {
+    "java" => Builtin {
         builtin: BuiltInLanguage::Java,
         source_file: "Solution.java",
         versions: phf_ordered_map! {
@@ -42,7 +42,7 @@ static BUILTINS: phf::Map<&'static str, BIL> = phf_map! {
             },
         },
     },
-    "javascript" => BIL {
+    "javascript" => Builtin {
         builtin: BuiltInLanguage::JavaScript,
         source_file: "solution.js",
         versions: phf_ordered_map! {
@@ -52,7 +52,7 @@ static BUILTINS: phf::Map<&'static str, BIL> = phf_map! {
             }
         },
     },
-    "rust" => BIL {
+    "rust" => Builtin {
         builtin: BuiltInLanguage::Rust,
         source_file: "solution.rs",
         versions: phf_ordered_map! {
@@ -87,7 +87,7 @@ impl BuiltInLanguage {
                 if bil.versions.contains_key(v) {
                     Ok(())
                 } else {
-                    Err(bil.versions.keys().map(|s| *s).collect())
+                    Err(bil.versions.keys().copied().collect())
                 }
             }
         }
@@ -95,7 +95,7 @@ impl BuiltInLanguage {
 
     pub fn joined_variants() -> String {
         BuiltInLanguage::VARIANTS
-            .into_iter()
+            .iter()
             .map(|s| format!("'{}'", s))
             .collect::<Vec<_>>()
             .join(", ")
