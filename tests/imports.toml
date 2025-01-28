@@ -1,0 +1,25 @@
+port = 80
+
+[setup]
+import = "./tests/setup.toml"
+
+[languages]
+python3 = "enabled"
+java = "23"
+ocaml = { build = "ocamlc -o out solution.ml", run = "./out", source_file = "solution.ml" }
+
+[[accounts.admins]]
+name = "Teacher"
+password = "abc123"
+
+[[accounts.competitors]]
+name = "StudentOne"
+password = "123abc"
+
+[[accounts.competitors]]
+name = "StudentTwo"
+password = "deadbeef"
+
+# Specify information about the packet itself
+[packet]
+import = "./packet.toml"

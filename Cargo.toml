@@ -9,7 +9,8 @@ thiserror = "2.0.11"
 toml_edit = { version = "0.22.22", features = ["serde"] }
 tokio = { version = "1.42.0", features = ["fs", "io-util"], optional = true }
 miette = { version = "7.4.0", features = ["fancy"] }
-ron = "0.8.1"
+phf = { version = "0.11.3", features = ["macros"] }
+strum = { version = "0.26.3", features = ["derive", "phf"] }
 
 [dev-dependencies]
 bedrock = { path = ".", features = ["tokio"] }
