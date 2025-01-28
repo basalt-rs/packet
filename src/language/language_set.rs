@@ -80,7 +80,7 @@ impl<'de> Visitor<'de> for LanguageMapVisitor {
                     run,
                     source_file,
                 } => Language::Custom {
-                    name: name.unwrap_or(key.clone()).into_owned(),
+                    name: name.unwrap_or_else(|| key.clone()).into_owned(),
                     raw_name: key.into_owned(),
                     build: build.map(Cow::into_owned),
                     run: run.into_owned(),
