@@ -12,6 +12,7 @@ struct BIL {
     versions: phf::OrderedMap<&'static str, CommandCombo>,
 }
 
+// TODO: enforce minimum version count of 1 at compile time
 static BUILTINS: phf::Map<&'static str, BIL> = phf_map! {
     "python3" => BIL {
         builtin: BuiltInLanguage::Python3,
