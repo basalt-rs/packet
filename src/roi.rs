@@ -6,7 +6,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use crate::ConfigReadError;
 
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
-#[serde(untagged)] // TODO: This is mildly fucking up the error messages
+#[serde(untagged)]
 pub enum RawOrImport<T> {
     /// The type has been directly stated in the current file
     Raw(T),
