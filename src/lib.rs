@@ -26,7 +26,7 @@ pub(crate) fn default_port() -> u16 {
 }
 
 /// Authentication details for a specific user (competitor or admin)
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Default)]
 #[serde(deny_unknown_fields)]
 pub struct User {
     pub name: String,
@@ -34,7 +34,7 @@ pub struct User {
 }
 
 /// Set of users that are either hosts or competitors
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Default)]
 #[serde(deny_unknown_fields)]
 pub struct Accounts {
     /// Administrators in charge of managing the competition
@@ -44,7 +44,7 @@ pub struct Accounts {
 }
 
 /// Configuration for setting up the docker container and starting the server
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Default)]
 #[serde(deny_unknown_fields)]
 pub struct Setup {
     /// Specifies what commands are to be run when building the container to ensure dependencies
@@ -152,5 +152,17 @@ impl Config {
         let mut buf = String::new();
         reader.read_to_string(&mut buf).await?;
         Self::from_str(&buf, file_name)
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            setup: None,
+            port: default_port(),
+            languages: Default::default(),
+            accounts: Default::default(),
+            packet: Default::default(),
+        }
     }
 }

@@ -8,7 +8,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::ConfigReadError;
 
-#[derive(Serialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
+#[derive(Serialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Default)]
 pub struct RawOrImport<T>(T);
 
 impl<'de, T> Deserialize<'de> for RawOrImport<T>

@@ -53,3 +53,8 @@ async fn packet_files_parse_correctly_async() -> Result<()> {
     let _ = Config::read_async(&mut file, Some("cargo.toml")).await?;
     Ok(())
 }
+
+#[test]
+fn default_config() {
+    let _ = Config::default();
+}

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::RawOrImport;
 
 /// Structure represnting data for a problem
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 #[serde(deny_unknown_fields)]
 pub struct Problem {
     /// The languages that may be used to solve this question
@@ -23,7 +23,7 @@ pub struct Problem {
 /// A specific test that will be used to validate that user's code.
 ///
 /// The input and expected output for visible tests will be shown to the user
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Default)]
 #[serde(deny_unknown_fields)]
 pub struct Test {
     /// The input that will be provided via STDIN to the test
@@ -47,7 +47,7 @@ pub struct Test {
 }
 
 /// A packet which contains configuration for problems and their tests
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 #[serde(deny_unknown_fields)]
 pub struct Packet {
     /// Title of the packet
