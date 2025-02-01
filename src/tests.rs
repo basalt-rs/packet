@@ -17,14 +17,13 @@ fn packets_parse_correctly() -> Result<()> {
 fn packet_files_parse_correctly() -> Result<()> {
     let mut file = Cursor::new(EXAMPLE_ONE_CONTENT);
     let config = Config::read(&mut file, Some("Cargo.toml"))?;
-    let languages = config.languages.get()?;
 
     assert_eq!(
         Some(&Language::BuiltIn {
             language: BuiltInLanguage::Python3,
             version: Version::Latest
         }),
-        languages.get_by_str(&"python3")
+        config.languages.get_by_str(&"python3")
     );
 
     assert_eq!(
@@ -32,7 +31,7 @@ fn packet_files_parse_correctly() -> Result<()> {
             language: BuiltInLanguage::Java,
             version: Version::Specific("23".into())
         }),
-        languages.get_by_str(&"java")
+        config.languages.get_by_str(&"java")
     );
 
     assert_eq!(
@@ -43,7 +42,7 @@ fn packet_files_parse_correctly() -> Result<()> {
             run: "./out".into(),
             source_file: "solution.ml".into()
         }),
-        languages.get_by_str(&"ocaml")
+        config.languages.get_by_str(&"ocaml")
     );
     Ok(())
 }

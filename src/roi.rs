@@ -1,4 +1,7 @@
-use std::{fs, path::PathBuf};
+use std::{
+    ops::{Deref, DerefMut},
+    path::PathBuf,
+};
 
 use miette::NamedSource;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -6,17 +9,11 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use crate::ConfigReadError;
 
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
-#[serde(untagged)]
-pub enum RawOrImport<T> {
-    /// The type has been directly stated in the current file
-    Raw(T),
-    /// The contents have been placed into another file
-    Import { import: PathBuf },
-}
+pub struct RawOrImport<T>(T);
 
 impl<'de, T> Deserialize<'de> for RawOrImport<T>
 where
-    T: Deserialize<'de>,
+    T: DeserializeOwned,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -30,11 +27,23 @@ where
         let de = serde::__private::de::ContentRefDeserializer::<D::Error>::new(&content);
 
         if let Ok(import) = Import::deserialize(de) {
-            return Ok(RawOrImport::Import {
-                import: import.import,
-            });
+            // TODO: Figure out how to make the path relative to the toml file rather than the
+            // runtime
+            // TODO: This sync code makes me want to die
+            let content =
+                std::fs::read_to_string(&import.import).map_err(serde::de::Error::custom)?;
+
+            let x: T = toml_edit::de::from_str(&content)
+                .map_err(|e| {
+                    ConfigReadError::malformed(
+                        NamedSource::new(import.import.display().to_string(), content),
+                        e,
+                    )
+                })
+                .map_err(serde::de::Error::custom)?;
+            return Ok(Self(x));
         }
-        Ok(RawOrImport::Raw(T::deserialize(de)?))
+        Ok(Self(T::deserialize(de)?))
     }
 }
 
@@ -44,49 +53,22 @@ struct Import {
     import: PathBuf,
 }
 
-impl<T> RawOrImport<T>
-where
-    T: DeserializeOwned,
-{
-    /// Get the contents of this item if it's [`RawOrImport::Raw`], otherwise get the contents from
-    /// file
-    pub fn get(self) -> Result<T, ConfigReadError> {
-        match self {
-            RawOrImport::Raw(t) => Ok(t),
-            RawOrImport::Import { import } => {
-                let content = fs::read_to_string(&import)?;
-                toml_edit::de::from_str(&content).map_err(|e| {
-                    ConfigReadError::malformed(
-                        NamedSource::new(import.display().to_string(), content)
-                            .with_language("TOML"),
-                        e,
-                    )
-                })
-            }
-        }
-    }
+impl<T> Deref for RawOrImport<T> {
+    type Target = T;
 
-    /// Get the contents of this item if it's [`RawOrImport::Raw`], otherwise get the contents from
-    /// file
-    #[cfg(feature = "tokio")]
-    pub async fn get_async(self) -> Result<T, ConfigReadError> {
-        match self {
-            RawOrImport::Raw(t) => Ok(t),
-            RawOrImport::Import { import } => {
-                let content = tokio::fs::read_to_string(&import).await?;
-                toml_edit::de::from_str(&content).map_err(|e| {
-                    ConfigReadError::malformed(
-                        NamedSource::new(import.display().to_string(), content),
-                        e,
-                    )
-                })
-            }
-        }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> DerefMut for RawOrImport<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
 impl<T> From<T> for RawOrImport<T> {
     fn from(value: T) -> Self {
-        Self::Raw(value)
+        Self(value)
     }
 }

@@ -22,4 +22,4 @@ password = "deadbeef"
 
 # Specify information about the packet itself
 [packet]
-import = "./packet.toml"
+import = "./tests/packet.toml"
