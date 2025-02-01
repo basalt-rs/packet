@@ -1,3 +1,4 @@
+use language::{BuiltInLanguage, Language, Version};
 use miette::Result;
 
 use super::*;
@@ -15,7 +16,35 @@ fn packets_parse_correctly() -> Result<()> {
 #[test]
 fn packet_files_parse_correctly() -> Result<()> {
     let mut file = Cursor::new(EXAMPLE_ONE_CONTENT);
-    let _ = Config::read(&mut file, Some("Cargo.toml"))?;
+    let config = Config::read(&mut file, Some("Cargo.toml"))?;
+    let languages = config.languages.get()?;
+
+    assert_eq!(
+        Some(&Language::BuiltIn {
+            language: BuiltInLanguage::Python3,
+            version: Version::Latest
+        }),
+        languages.get_by_str(&"python3")
+    );
+
+    assert_eq!(
+        Some(&Language::BuiltIn {
+            language: BuiltInLanguage::Java,
+            version: Version::Specific("23".into())
+        }),
+        languages.get_by_str(&"java")
+    );
+
+    assert_eq!(
+        Some(&Language::Custom {
+            raw_name: "ocaml".into(),
+            name: "ocaml".into(),
+            build: Some("ocamlc -o out solution.ml".into()),
+            run: "./out".into(),
+            source_file: "solution.ml".into()
+        }),
+        languages.get_by_str(&"ocaml")
+    );
     Ok(())
 }
 

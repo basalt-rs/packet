@@ -182,6 +182,13 @@ pub enum Language {
 }
 
 impl Language {
+    pub fn raw_name(&self) -> &str {
+        match self {
+            Language::BuiltIn { language, .. } => language.as_str(),
+            Language::Custom { raw_name, .. } => raw_name,
+        }
+    }
+
     pub fn name(&self) -> &str {
         match self {
             Language::BuiltIn { language, .. } => language.name(),

@@ -28,6 +28,10 @@ impl LanguageSet {
             inner: HashSet::with_capacity(capacity),
         }
     }
+
+    pub fn get_by_str(&self, raw_name: &str) -> Option<&Language> {
+        self.inner.iter().find(|l| l.raw_name() == raw_name)
+    }
 }
 
 impl Deref for LanguageSet {
