@@ -121,7 +121,7 @@ pub struct TestRunner {
         with = "custom_serde::duration",
         default = "TestRunner::default_timeout"
     )]
-    timeout: Duration,
+    pub timeout: Duration,
     /// Whether the test runner should trim the output of a test before comparing with the
     /// expected output
     ///
@@ -130,16 +130,16 @@ pub struct TestRunner {
     ///
     /// [Default: true]
     #[serde(default = "TestRunner::default_trim_output")]
-    trim_output: bool,
+    pub trim_output: bool,
     /// Files to copy into the test directory
     #[serde(default)]
-    copy_files: Vec<FileCopy>,
+    pub copy_files: Vec<FileCopy>,
     /// Amount of memory that may be used by the process, measured in MiB
     #[serde(default)]
-    max_memory: CommandConfig<u64>,
+    pub max_memory: CommandConfig<u64>,
     /// Maximum size of files that may be created by the tests, measured in MiB
     #[serde(default)]
-    max_file_size: CommandConfig<u64>,
+    pub max_file_size: CommandConfig<u64>,
 }
 
 impl TestRunner {
