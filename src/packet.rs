@@ -30,15 +30,6 @@ pub struct Test {
     pub input: String,
     /// The expected output from STDOUT
     pub output: String,
-    /// Whether the test runner should trim the output of the test before comparing with the
-    /// expected output
-    ///
-    /// If this is true, the output of `hello world    ` matches the expected output of ` hello
-    /// world`
-    ///
-    /// [Default: true]
-    #[serde(default = "crate::default_true")]
-    pub trim_output: bool,
     /// Whether this test should be shown to the competitor or just used for validation
     ///
     /// The first visible test will be shown as an example for the user

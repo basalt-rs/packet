@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::{io::Read, path::PathBuf, time::Duration};
 
 use language::LanguageSet;
 use miette::{Diagnostic, LabeledSpan, NamedSource, SourceCode};
@@ -6,6 +6,7 @@ use packet::Packet;
 use roi::RawOrImport;
 use serde::{Deserialize, Serialize};
 
+mod custom_serde;
 pub mod language;
 pub mod packet;
 pub mod roi;
@@ -15,10 +16,6 @@ mod tests;
 
 pub(crate) fn default_false() -> bool {
     false
-}
-
-pub(crate) fn default_true() -> bool {
-    true
 }
 
 pub(crate) fn default_port() -> u16 {
@@ -53,6 +50,118 @@ pub struct Setup {
     /// Specifies commands to run before running basalt-server so that dependencies are enabled
     /// properly.
     pub init: Option<RawOrImport<String>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
+#[serde(deny_unknown_fields)]
+pub struct FileCopy {
+    /// Source file to copy
+    ///
+    /// Relative to the directory in which the server is running
+    pub from: PathBuf,
+    /// Destination of the file
+    ///
+    /// Relative to the directory in which the test is run
+    pub to: PathBuf,
+}
+
+/// Mirrors the `CommandConfig` type in [leucite](https://basalt-rs.github.io/erudite/erudite/struct.CommandConfig.html)
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Default)]
+#[serde(deny_unknown_fields, untagged)]
+pub enum CommandConfig<T> {
+    #[default]
+    Neither,
+    Both(T),
+    Compile {
+        compile: T,
+    },
+    Run {
+        run: T,
+    },
+    Each {
+        compile: T,
+        run: T,
+    },
+}
+
+impl<T> CommandConfig<T> {
+    pub fn compile(&self) -> Option<&T> {
+        match self {
+            CommandConfig::Neither => None,
+            CommandConfig::Both(t) => Some(t),
+            CommandConfig::Compile { compile } => Some(compile),
+            CommandConfig::Run { .. } => None,
+            CommandConfig::Each { compile, .. } => Some(compile),
+        }
+    }
+
+    pub fn run(&self) -> Option<&T> {
+        match self {
+            CommandConfig::Neither => None,
+            CommandConfig::Both(t) => Some(t),
+            CommandConfig::Compile { .. } => None,
+            CommandConfig::Run { run } => Some(run),
+            CommandConfig::Each { run, .. } => Some(run),
+        }
+    }
+}
+
+/// Configuration for the test runner
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
+#[serde(deny_unknown_fields)]
+pub struct TestRunner {
+    /// The amount of time that a test may run before it is cancelled by the test runner and marked
+    /// as failure
+    ///
+    /// Measured in milliseconds
+    ///
+    /// [Default: 10 seconds]
+    #[serde(rename = "timeout_ms")] // renamed so unit is obvious
+    #[serde(
+        with = "custom_serde::duration",
+        default = "TestRunner::default_timeout"
+    )]
+    timeout: Duration,
+    /// Whether the test runner should trim the output of a test before comparing with the
+    /// expected output
+    ///
+    /// If this is true, the output of `hello world    ` matches the expected output of ` hello
+    /// world`
+    ///
+    /// [Default: true]
+    #[serde(default = "TestRunner::default_trim_output")]
+    trim_output: bool,
+    /// Files to copy into the test directory
+    #[serde(default)]
+    copy_files: Vec<FileCopy>,
+    /// Amount of memory that may be used by the process, measured in MiB
+    #[serde(default)]
+    max_memory: CommandConfig<u64>,
+    /// Maximum size of files that may be created by the tests, measured in MiB
+    #[serde(default)]
+    max_file_size: CommandConfig<u64>,
+}
+
+impl TestRunner {
+    fn default_timeout() -> Duration {
+        Duration::from_secs(10)
+    }
+
+    fn default_trim_output() -> bool {
+        true
+    }
+}
+
+impl Default for TestRunner {
+    fn default() -> Self {
+        Self {
+            timeout: Self::default_timeout(),
+            trim_output: Self::default_trim_output(),
+            copy_files: Default::default(),
+            max_memory: CommandConfig::Neither,
+            max_file_size: CommandConfig::Neither,
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error, Diagnostic)]
@@ -100,6 +209,9 @@ pub struct Config {
     pub accounts: RawOrImport<Accounts>,
     /// The packet for this competition
     pub packet: RawOrImport<Packet>,
+    /// Configuration for the test runner
+    #[serde(default)]
+    pub test_runner: RawOrImport<TestRunner>,
 }
 
 impl Config {
@@ -163,6 +275,7 @@ impl Default for Config {
             languages: Default::default(),
             accounts: Default::default(),
             packet: Default::default(),
+            test_runner: Default::default(),
         }
     }
 }

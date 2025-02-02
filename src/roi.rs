@@ -21,8 +21,8 @@ where
     {
         // TODO:
         // These gems are stolen from the generated output of `#[derive(Deserialize)]`
-        // This is probably not the ideal solution, but it works, so we may want to change this in
-        // the future.
+        // This is obviously not ideal (literally using `__private`) so we should look at how to
+        // properly do this in the future.
         let content = serde::__private::de::Content::deserialize(deserializer)?;
         let de = serde::__private::de::ContentRefDeserializer::<D::Error>::new(&content);
 
