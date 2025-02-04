@@ -6,10 +6,17 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use strum::VariantNames;
 
+struct LanguageVersion {
+    build: Option<&'static str>,
+    run: &'static str,
+    install_command: Option<&'static str>,
+    init_command: Option<&'static str>,
+}
+
 struct Builtin {
     builtin: BuiltInLanguage,
     source_file: &'static str,
-    versions: phf::OrderedMap<&'static str, CommandCombo>,
+    versions: phf::OrderedMap<&'static str, LanguageVersion>,
 }
 
 // TODO: enforce minimum version count of 1 at compile time
@@ -18,27 +25,35 @@ static BUILTINS: phf::Map<&'static str, Builtin> = phf_map! {
         builtin: BuiltInLanguage::Python3,
         source_file: "solution.py",
         versions: phf_ordered_map! {
-            "latest" => CommandCombo {
+            "latest" => LanguageVersion {
                 build: None,
                 run: "python3 ./solution.py",
+                install_command: Some("dnf install python3"),
+                init_command: None,
             }
         },
     },
     "java" => Builtin {
         builtin: BuiltInLanguage::Java,
         source_file: "Solution.java",
-        versions: phf_ordered_map! {
-            "8" => CommandCombo {
-                build: Some("/lib/jvm/java-8-openjdk/bin/javac Solution.java"),
-                run: "/lib/jvm/java-8-openjdk/bin/java Solution"
+        versions: phf_ordered_map! { // `java[c]` is fine since we only allow one language at a time
+            "8" => LanguageVersion {
+                build: Some("javac Solution.java"),
+                run: "java Solution",
+                install_command: Some("dnf install java-1.8.0-openjdk-devel"),
+                init_command: None,
             },
-            "11" => CommandCombo {
-                build: Some("/lib/jvm/java-11-openjdk/bin/javac Solution.java"),
-                run: "/lib/jvm/java-11-openjdk/bin/java Solution"
+            "11" => LanguageVersion {
+                build: Some("javac Solution.java"),
+                run: "java Solution",
+                install_command: Some("dnf install java-11-openjdk-devel"),
+                init_command: None,
             },
-            "23" => CommandCombo {
-                build: Some("/lib/jvm/java-23-openjdk/bin/javac Solution.java"),
-                run: "/lib/jvm/java-23-openjdk/bin/java Solution"
+            "21" => LanguageVersion {
+                build: Some("javac Solution.java"),
+                run: "java Solution",
+                install_command: Some("dnf install java-21-openjdk-devel"),
+                init_command: None,
             },
         },
     },
@@ -46,9 +61,11 @@ static BUILTINS: phf::Map<&'static str, Builtin> = phf_map! {
         builtin: BuiltInLanguage::JavaScript,
         source_file: "solution.js",
         versions: phf_ordered_map! {
-            "latest" => CommandCombo {
+            "latest" => LanguageVersion {
                 build: None,
-                run: "nodejs solution.js"
+                run: "nodejs solution.js",
+                install_command: Some("dnf install nodejs20"),
+                init_command: None,
             }
         },
     },
@@ -56,18 +73,15 @@ static BUILTINS: phf::Map<&'static str, Builtin> = phf_map! {
         builtin: BuiltInLanguage::Rust,
         source_file: "solution.rs",
         versions: phf_ordered_map! {
-            "latest" => CommandCombo {
+            "latest" => LanguageVersion {
                 build: Some("rustc -o solution solution.rs"),
-                run: "./solution"
+                run: "./solution",
+                install_command: Some("dnf install rust"),
+                init_command: None,
             }
         },
     },
 };
-
-struct CommandCombo {
-    build: Option<&'static str>,
-    run: &'static str,
-}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, VariantNames)]
 #[strum(serialize_all = "lowercase")]
@@ -144,6 +158,34 @@ impl BuiltInLanguage {
             Version::Specific(v) => bil.versions[v].run,
         }
     }
+
+    pub fn install_command(self, version: &Version) -> Option<&str> {
+        let bil = &BUILTINS[self.as_str()];
+        match version {
+            Version::Latest => {
+                bil.versions
+                    .values()
+                    .last()
+                    .expect("all language must have at least one version")
+                    .install_command
+            }
+            Version::Specific(v) => bil.versions[v].install_command,
+        }
+    }
+
+    pub fn init_command(self, version: &Version) -> Option<&str> {
+        let bil = &BUILTINS[self.as_str()];
+        match version {
+            Version::Latest => {
+                bil.versions
+                    .values()
+                    .last()
+                    .expect("all language must have at least one version")
+                    .init_command
+            }
+            Version::Specific(v) => bil.versions[v].init_command,
+        }
+    }
 }
 
 impl From<&str> for BuiltInLanguage {
@@ -214,6 +256,20 @@ impl Language {
         match self {
             Language::BuiltIn { language, version } => language.run_command(version),
             Language::Custom { run, .. } => run,
+        }
+    }
+
+    pub fn install_command(&self) -> Option<&str> {
+        match self {
+            Language::BuiltIn { language, version } => language.install_command(version),
+            Language::Custom { .. } => None,
+        }
+    }
+
+    pub fn init_command(&self) -> Option<&str> {
+        match self {
+            Language::BuiltIn { language, version } => language.init_command(version),
+            Language::Custom { .. } => None,
         }
     }
 }

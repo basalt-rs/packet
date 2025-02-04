@@ -29,7 +29,7 @@ fn packet_files_parse_correctly() -> Result<()> {
     assert_eq!(
         Some(&Language::BuiltIn {
             language: BuiltInLanguage::Java,
-            version: Version::Specific("23".into())
+            version: Version::Specific("21".into())
         }),
         config.languages.get_by_str(&"java")
     );

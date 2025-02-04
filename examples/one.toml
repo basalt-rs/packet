@@ -24,7 +24,7 @@ max_file_size = 8192
 
 [languages]
 python3 = "latest"
-java = "23"
+java = "21"
 ocaml = { build = "ocamlc -o out solution.ml", run = "./out", source_file = "solution.ml" }
 
 [[accounts.admins]]
