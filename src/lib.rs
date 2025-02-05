@@ -5,6 +5,7 @@ use miette::{Diagnostic, LabeledSpan, NamedSource, SourceCode};
 use packet::Packet;
 use roi::RawOrImport;
 use serde::{Deserialize, Serialize};
+use xxhash_rust::xxh3;
 
 mod custom_serde;
 pub mod language;
@@ -198,6 +199,9 @@ impl ConfigReadError {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
+    /// Hash of the config file itself.  This is used for [`Config::hash`].
+    #[serde(skip)]
+    hash: u64,
     /// Configuration for setting up the docker container and starting the server
     pub setup: Option<RawOrImport<Setup>>,
     /// Port on which the server will be hosted
@@ -222,16 +226,19 @@ impl Config {
         content: impl AsRef<str>,
         file_name: Option<impl AsRef<str>>,
     ) -> Result<Self, ConfigReadError> {
-        toml_edit::de::from_str(content.as_ref()).map_err(|e| {
+        let content = content.as_ref();
+        let mut config: Self = toml_edit::de::from_str(content).map_err(|e| {
             if let Some(file_name) = file_name {
                 ConfigReadError::malformed(
-                    NamedSource::new(file_name, content.as_ref().to_string()).with_language("TOML"),
+                    NamedSource::new(file_name, content.to_string()).with_language("TOML"),
                     e,
                 )
             } else {
-                ConfigReadError::malformed(content.as_ref().to_string(), e)
+                ConfigReadError::malformed(content.to_string(), e)
             }
-        })
+        })?;
+        config.hash = xxh3::xxh3_64(content.as_bytes());
+        Ok(config)
     }
 
     /// Read config from a file
@@ -265,11 +272,28 @@ impl Config {
         reader.read_to_string(&mut buf).await?;
         Self::from_str(&buf, file_name)
     }
+
+    /// Generate a hash string for this config
+    pub fn hash(&self) -> String {
+        base62::encode(self.hash)
+    }
+
+    /// Write the encoded hash to any [`std::fmt::Write`]
+    ///
+    /// ```
+    /// # use bedrock::*;
+    /// # let config = Config::default();
+    /// let my_str = format!("Your hash is '{}'!", config.hash_fmt());
+    /// ```
+    pub fn hash_fmt(&self) -> impl std::fmt::Display {
+        base62::encode_fmt(self.hash)
+    }
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
+            hash: Default::default(),
             setup: None,
             port: default_port(),
             languages: Default::default(),
