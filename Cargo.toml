@@ -3,6 +3,9 @@ name = "bedrock"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+typst = ["dep:typst", "dep:typst-pdf", "dep:time", "dep:ttf-parser"]
+
 [dependencies]
 serde = { version = "1.0.216", features = ["derive"] }
 thiserror = "2.0.11"
@@ -13,7 +16,15 @@ phf = { version = "0.11.3", features = ["macros"] }
 strum = { version = "0.26.3", features = ["derive", "phf"] }
 xxhash-rust = { version = "0.8.15", features = ["xxh3", "const_xxh3"] }
 base62 = "2.2.1"
+tempfile = "3.16.0"
+
+typst = { version = "0.12.0", optional = true }
+typst-pdf = { version = "0.12.0", optional = true }
+time = { version = "0.3.37", optional = true }
+ttf-parser = { version = "0.25.1", optional = true }
+fontdb = "0.23.0"
+
 
 [dev-dependencies]
-bedrock = { path = ".", features = ["tokio"] }
+bedrock = { path = ".", features = ["tokio", "typst"] }
 tokio = { version = "1.42.0", features = ["full"] }

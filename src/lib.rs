@@ -1,4 +1,8 @@
-use std::{io::Read, path::PathBuf, time::Duration};
+use std::{
+    io::{Read, Write},
+    path::PathBuf,
+    time::Duration,
+};
 
 use language::LanguageSet;
 use miette::{Diagnostic, LabeledSpan, NamedSource, SourceCode};
@@ -11,6 +15,8 @@ mod custom_serde;
 pub mod language;
 pub mod packet;
 pub mod roi;
+#[cfg(feature = "typst")]
+pub mod typst_util;
 
 #[cfg(test)]
 mod tests;
@@ -287,6 +293,76 @@ impl Config {
     /// ```
     pub fn hash_fmt(&self) -> impl std::fmt::Display {
         base62::encode_fmt(self.hash)
+    }
+
+    #[cfg(feature = "typst")]
+    pub fn write_pdf<W>(&self, writer: &mut W)
+    where
+        W: Write,
+    {
+        // struct Foo {
+        //     library: LazyHash<Library>,
+        //     book: LazyHash<FontBook>,
+        //     file: PathBuf,
+        //     content: String,
+        // }
+
+        // impl typst::World for Foo {
+        //     fn library(&self) -> &LazyHash<Library> {
+        //         &self.library
+        //     }
+
+        //     #[doc = " Metadata about all known fonts."]
+        //     fn book(&self) -> &LazyHash<FontBook> {
+        //         &self.book
+        //     }
+
+        //     #[doc = " Get the file id of the main source file."]
+        //     fn main(&self) -> FileId {
+        //         FileId::new_fake(VirtualPath::new(&self.file))
+        //     }
+
+        //     #[doc = " Try to access the specified source file."]
+        //     fn source(&self, id: FileId) -> FileResult<Source> {
+        //         Ok(Source::new(id, self.content.clone()))
+        //     }
+
+        //     #[doc = " Try to access the specified file."]
+        //     fn file(&self, _id: FileId) -> FileResult<Bytes> {
+        //         todo!()
+        //     }
+
+        //     #[doc = " Try to access the font with the given index in the font book."]
+        //     fn font(&self, _index: usize) -> Option<Font> {
+        //         None
+        //     }
+
+        //     #[doc = " Get the current date."]
+        //     #[doc = ""]
+        //     #[doc = " If no offset is specified, the local date should be chosen. Otherwise,"]
+        //     #[doc = " the UTC date should be chosen with the corresponding offset in hours."]
+        //     #[doc = ""]
+        //     #[doc = " If this function returns `None`, Typst\'s `datetime` function will"]
+        //     #[doc = " return an error."]
+        //     fn today(&self, _offset: Option<i64>) -> Option<Datetime> {
+        //         todo!()
+        //     }
+        // }
+        // let file = tempfile::NamedTempFile::new().unwrap();
+        // let world = Foo {
+        //     library: LazyHash::new(Library::default()),
+        //     book: LazyHash::new(FontBook::default()),
+        //     file: file.path().into(),
+        //     content: "= hello".into(),
+        // };
+        // let res = dbg!(typst::compile(&world));
+        // let out = res.output.unwrap();
+        // let v = typst_pdf::pdf(&out, &typst_pdf::PdfOptions::default()).unwrap();
+        // writer.write_all(&v).unwrap();
+        let welt = typst_util::TypstWrapperWorld::new("../".into(), "= hello world\n".into());
+        let document = typst::compile(&welt).output.expect("Error compiling typst");
+        let v = typst_pdf::pdf(&document, &typst_pdf::PdfOptions::default()).unwrap();
+        writer.write_all(&v).unwrap();
     }
 }
 
