@@ -10,7 +10,7 @@ async fn main() -> io::Result<()> {
 
     let x = bedrock::Config::from_str(config, Some("one.toml")).unwrap();
 
-    let mut out = std::fs::File::create("urmom.pdf").unwrap();
+    let mut out = std::fs::File::create("uil.pdf").unwrap();
 
     x.write_pdf(&mut out)?;
 
