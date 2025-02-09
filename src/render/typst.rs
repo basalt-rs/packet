@@ -1,10 +1,19 @@
 // Adapted from: https://github.com/tfachmann/typst-as-library/blob/main/src/lib.rs
-use typst::diag::FileResult;
-use typst::foundations::{Bytes, Datetime};
+
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+use comemo::{track, Tracked};
+use once_cell::sync::Lazy;
+use typst::diag::{FileError, FileResult, SourceResult};
+use typst::engine::Engine;
+use typst::foundations::{
+    Args, Bytes, Context, Datetime, NativeFuncData, ParamInfo, Scope, Str, Value,
+};
 use typst::syntax::{FileId, Source};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
-use typst::Library;
+use typst::{Library, World};
 use typst_kit::fonts::{FontSlot, Fonts};
 
 /// This struct is needed so we can return a single value from the `lazy_static`
@@ -27,10 +36,13 @@ pub struct TypstWrapperWorld {
     source: Source,
 
     /// The standard library.
-    library: LazyHash<Library>,
+    pub(crate) library: LazyHash<Library>,
 
     /// Datetime.
     time: time::OffsetDateTime,
+
+    /// Map of all known files.
+    files: Arc<Mutex<HashMap<FileId, FileEntry>>>,
 }
 
 impl TypstWrapperWorld {
@@ -39,10 +51,61 @@ impl TypstWrapperWorld {
             library: LazyHash::new(Library::default()),
             source: Source::detached(source),
             time: time::OffsetDateTime::now_utc(),
+            files: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    /// Helper to handle file requests.
+    fn get_file(&self, id: FileId) -> FileResult<FileEntry> {
+        let mut files = self.files.lock().map_err(|_| FileError::AccessDenied)?;
+        if let Some(entry) = files.get(&id) {
+            return Ok(entry.clone());
+        }
+        let path = if let Some(package) = id.package() {
+            Err(typst::diag::PackageError::NotFound(package.clone()))?
+        } else {
+            // Fetching file from disk
+            id.vpath().resolve(&std::env::current_dir().unwrap())
+        }
+        .ok_or(FileError::AccessDenied)?;
+
+        let content = std::fs::read(&path).map_err(|error| FileError::from_io(error, &path))?;
+        Ok(files
+            .entry(id)
+            .or_insert(FileEntry::new(content, None))
+            .clone())
     }
 }
 
+/// A File that will be stored in the HashMap.
+#[derive(Clone, Debug)]
+struct FileEntry {
+    bytes: Bytes,
+    source: Option<Source>,
+}
+
+impl FileEntry {
+    fn new(bytes: Vec<u8>, source: Option<Source>) -> Self {
+        Self {
+            bytes: bytes.into(),
+            source,
+        }
+    }
+
+    fn source(&mut self, id: FileId) -> FileResult<Source> {
+        let source = if let Some(source) = &self.source {
+            source
+        } else {
+            let contents = std::str::from_utf8(&self.bytes).map_err(|_| FileError::InvalidUtf8)?;
+            let contents = contents.trim_start_matches('\u{feff}');
+            let source = Source::new(id, contents.into());
+            self.source.insert(source)
+        };
+        Ok(source.clone())
+    }
+}
+
+#[track]
 impl typst::World for TypstWrapperWorld {
     /// Standard library.
     fn library(&self) -> &LazyHash<Library> {
@@ -64,13 +127,13 @@ impl typst::World for TypstWrapperWorld {
         if id == self.source.id() {
             Ok(self.source.clone())
         } else {
-            todo!()
+            self.get_file(id)?.source(id)
         }
     }
 
     /// Accessing a specified file (non-file).
-    fn file(&self, _id: FileId) -> FileResult<Bytes> {
-        todo!()
+    fn file(&self, id: FileId) -> FileResult<Bytes> {
+        self.get_file(id).map(|file| file.bytes.clone())
     }
 
     /// Accessing a specified font per index of font book.

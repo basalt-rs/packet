@@ -14,9 +14,11 @@ use xxhash_rust::xxh3;
 mod custom_serde;
 pub mod language;
 pub mod packet;
+#[cfg(feature = "render")]
+pub mod render;
 pub mod roi;
-#[cfg(feature = "typst")]
-pub mod typst_util;
+
+mod util;
 
 #[cfg(test)]
 mod tests;
@@ -295,12 +297,41 @@ impl Config {
         base62::encode_fmt(self.hash)
     }
 
-    #[cfg(feature = "typst")]
+    #[cfg(feature = "render")]
     pub fn write_pdf<W>(&self, writer: &mut W) -> std::io::Result<()>
     where
         W: Write,
     {
-        let welt = typst_util::TypstWrapperWorld::new("= hello world\n".into());
+        use typst::foundations::{Array, Content, Value};
+
+        #[cfg(feature = "dev")]
+        let s = std::fs::read_to_string("./template.typ").unwrap();
+        #[cfg(not(feature = "dev"))]
+        let s = include_str!("../template.typ").into();
+
+        let mut welt = render::typst::TypstWrapperWorld::new(s);
+        let mut arr = Array::new();
+        for problem in &self.packet.problems {
+            let dict = problem.as_value(&welt);
+            arr.push(dict)
+        }
+        welt.library
+            .global
+            .scope_mut()
+            .define("problems", Value::Array(arr));
+        welt.library
+            .global
+            .scope_mut()
+            .define("title", Value::Str(self.packet.title.as_str().into()));
+        let preamble = Value::Content(
+            self.packet
+                .preamble
+                .as_deref()
+                .map(|s| render::markdown::render_markdown(s, &welt))
+                .unwrap_or_else(Content::empty),
+        );
+
+        welt.library.global.scope_mut().define("preamble", preamble);
         let document = typst::compile(&welt).output.expect("Error compiling typst");
         let v = typst_pdf::pdf(&document, &typst_pdf::PdfOptions::default())
             .map_err(|e| std::io::Error::other(format!("{:?}", e)))?;

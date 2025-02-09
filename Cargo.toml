@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-typst = ["dep:typst", "dep:typst-pdf", "dep:typst-kit", "dep:time", "dep:lazy_static"]
+render = ["dep:typst", "dep:typst-pdf", "dep:typst-kit", "dep:time", "dep:lazy_static", "dep:pulldown-cmark", "dep:pulldown-cmark-ast", "dep:comemo", "dep:once_cell"]
+# Make it so we don't have recompile when the template.typ is changed
+dev = ["render"]
 
 [dependencies]
 serde = { version = "1.0.216", features = ["derive"] }
@@ -23,8 +25,14 @@ typst-pdf = { version = "0.12.0", optional = true }
 typst-kit = { version = "0.12.0", features = ["embed-fonts"], optional = true }
 time = { version = "0.3.37", optional = true }
 lazy_static = { version = "1.5.0", optional = true }
+pulldown-cmark-ast = { version = "0.1.0", optional = true }
+comemo = { version = "0.4.0", optional = true }
+# using 0.11.0 for `pulldown-cmark-ast`
+pulldown-cmark = { version = "0.11.0", optional = true }
+once_cell = { version = "1.20.3", optional = true }
+serde_json = "1.0.138"
 
 
 [dev-dependencies]
-bedrock = { path = ".", features = ["tokio", "typst"] }
+bedrock = { path = ".", features = ["tokio", "render"] }
 tokio = { version = "1.42.0", features = ["full"] }

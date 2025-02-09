@@ -63,7 +63,7 @@ Reversing a string is one of the most *basic* algorithmic
 problems for a beginner computer science student to solve.
 
 Solve it.
-''''
+'''
 
 [[packet.problems.tests]]
 input = "hello"
