@@ -20,7 +20,6 @@ pub struct Problem {
     pub tests: Vec<Test>,
 }
 
-#[cfg(feature = "render")]
 impl Problem {
     pub(crate) fn as_value(&self, world: &impl typst::World) -> typst::foundations::Value {
         use crate::util;

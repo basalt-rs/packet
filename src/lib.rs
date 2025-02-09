@@ -5,12 +5,12 @@ use miette::{Diagnostic, LabeledSpan, NamedSource, SourceCode};
 use packet::Packet;
 use roi::RawOrImport;
 use serde::{Deserialize, Serialize};
+use typst::foundations::{Array, Content, Value};
 use xxhash_rust::xxh3;
 
 mod custom_serde;
 pub mod language;
 pub mod packet;
-#[cfg(feature = "render")]
 pub mod render;
 pub mod roi;
 
@@ -293,19 +293,32 @@ impl Config {
         base62::encode_fmt(self.hash)
     }
 
-    #[cfg(feature = "render")]
-    pub fn write_pdf<W>(&self, writer: &mut W) -> std::io::Result<()>
-    where
-        W: std::io::Write,
-    {
-        use typst::foundations::{Array, Content, Value};
+    /// Render the competition information to a PDF, either using a provided template (written in
+    /// [typst](https://typst.app/)) or the default template
+    ///
+    /// # Template
+    ///
+    /// The template currently provides several variables that contain information about the
+    /// competition.
+    ///
+    /// - `#title`: `str` - the title of the competition
+    /// - `#preamble`: `content` - rendered markdown of the competition
+    /// - `#problems`: `array<Dict>` - array of problems in the packet
+    pub fn render_pdf(&self, template: Option<String>) -> std::io::Result<Vec<u8>> {
+        let template = if let Some(template) = template {
+            template
+        } else {
+            #[cfg(feature = "dev")]
+            {
+                std::fs::read_to_string("./template.typ").unwrap()
+            }
+            #[cfg(not(feature = "dev"))]
+            {
+                include_str!("../template.typ").into()
+            }
+        };
 
-        #[cfg(feature = "dev")]
-        let s = std::fs::read_to_string("./template.typ").unwrap();
-        #[cfg(not(feature = "dev"))]
-        let s = include_str!("../template.typ").into();
-
-        let mut welt = render::typst::TypstWrapperWorld::new(s);
+        let mut welt = render::typst::TypstWrapperWorld::new(template);
         let mut arr = Array::new();
         for problem in &self.packet.problems {
             let dict = problem.as_value(&welt);
@@ -329,10 +342,20 @@ impl Config {
 
         welt.library.global.scope_mut().define("preamble", preamble);
         let document = typst::compile(&welt).output.expect("Error compiling typst");
-        let v = typst_pdf::pdf(&document, &typst_pdf::PdfOptions::default())
-            .map_err(|e| std::io::Error::other(format!("{:?}", e)))?;
-        writer.write_all(&v)?;
-        Ok(())
+        typst_pdf::pdf(&document, &typst_pdf::PdfOptions::default())
+            .map_err(|e| std::io::Error::other(format!("{:?}", e)))
+    }
+
+    /// Note: In the current implementation of `typst-pdf`, this just renders to a vector and then
+    /// writes that to the `writer`.
+    pub fn write_pdf<W>(&self, writer: &mut W, template: Option<String>) -> std::io::Result<()>
+    where
+        W: std::io::Write,
+    {
+        // TODO: I would really love it if typst offered an API that did not have to create a vec
+        // just to render the PDF
+        let vec = self.render_pdf(template)?;
+        writer.write_all(&vec)
     }
 }
 

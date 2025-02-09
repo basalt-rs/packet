@@ -4,35 +4,31 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-render = ["dep:typst", "dep:typst-pdf", "dep:typst-kit", "dep:time", "dep:lazy_static", "dep:pulldown-cmark", "dep:pulldown-cmark-ast", "dep:comemo", "dep:once_cell"]
-# Make it so we don't have recompile when the template.typ is changed
-dev = ["render"]
+dev = [] # Make it so we don't have recompile when the template.typ is changed
 
 [dependencies]
-serde = { version = "1.0.216", features = ["derive"] }
-thiserror = "2.0.11"
-toml_edit = { version = "0.22.22", features = ["serde"] }
-tokio = { version = "1.42.0", features = ["fs", "io-util"], optional = true }
-miette = { version = "7.4.0", features = ["fancy"] }
-phf = { version = "0.11.3", features = ["macros"] }
-strum = { version = "0.26.3", features = ["derive", "phf"] }
-xxhash-rust = { version = "0.8.15", features = ["xxh3", "const_xxh3"] }
 base62 = "2.2.1"
-tempfile = "3.16.0"
-
-typst = { version = "0.12.0", optional = true }
-typst-pdf = { version = "0.12.0", optional = true }
-typst-kit = { version = "0.12.0", features = ["embed-fonts"], optional = true }
-time = { version = "0.3.37", optional = true }
-lazy_static = { version = "1.5.0", optional = true }
-pulldown-cmark-ast = { version = "0.1.0", optional = true }
-comemo = { version = "0.4.0", optional = true }
-# using 0.11.0 for `pulldown-cmark-ast`
-pulldown-cmark = { version = "0.11.0", optional = true }
-once_cell = { version = "1.20.3", optional = true }
+comemo = "0.4.0"
+lazy_static = "1.5.0"
+miette = { version = "7.4.0", features = ["fancy"] }
+once_cell = "1.20.3"
+phf = { version = "0.11.3", features = ["macros"] }
+pulldown-cmark = "0.11.0" # using 0.11.0 for `pulldown-cmark-ast`
+pulldown-cmark-ast = "0.1.0"
 serde_json = "1.0.138"
+serde = { version = "1.0.216", features = ["derive"] }
+strum = { version = "0.26.3", features = ["derive", "phf"] }
+tempfile = "3.16.0"
+thiserror = "2.0.11"
+time = "0.3.37"
+tokio = { version = "1.42.0", features = ["fs", "io-util"], optional = true }
+toml_edit = { version = "0.22.22", features = ["serde"] }
+typst = "0.12.0"
+typst-kit = { version = "0.12.0", features = ["embed-fonts"] }
+typst-pdf = "0.12.0"
+xxhash-rust = { version = "0.8.15", features = ["xxh3", "const_xxh3"] }
 
 
 [dev-dependencies]
-bedrock = { path = ".", features = ["tokio", "render"] }
+bedrock = { path = ".", features = ["tokio"] }
 tokio = { version = "1.42.0", features = ["full"] }

@@ -11,7 +11,7 @@ async fn main() -> io::Result<()> {
 
     let mut out = std::fs::File::create("test.pdf").unwrap();
 
-    x.write_pdf(&mut out)?;
+    x.write_pdf(&mut out, None)?;
 
     Ok(())
 }

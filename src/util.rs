@@ -1,6 +1,5 @@
 use serde::{de::DeserializeOwned, Serialize};
 
-#[cfg_attr(not(feature = "render"), allow(unused))]
 pub fn convert<D, S>(value: &S) -> D
 where
     D: DeserializeOwned,

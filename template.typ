@@ -72,7 +72,7 @@
       }
 
       #for (i, test) in q.tests.filter(t => t.visible).enumerate() {
-        [==== Test case #{i+1}]
+        [== Test case #{i+1}]
         test-case(test.input, test.output)
       }
     ]

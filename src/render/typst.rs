@@ -3,13 +3,9 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use comemo::{track, Tracked};
-use once_cell::sync::Lazy;
-use typst::diag::{FileError, FileResult, SourceResult};
-use typst::engine::Engine;
-use typst::foundations::{
-    Args, Bytes, Context, Datetime, NativeFuncData, ParamInfo, Scope, Str, Value,
-};
+use comemo::track;
+use typst::diag::{FileError, FileResult};
+use typst::foundations::{Bytes, Datetime};
 use typst::syntax::{FileId, Source};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
@@ -46,7 +42,7 @@ pub struct TypstWrapperWorld {
 }
 
 impl TypstWrapperWorld {
-    pub fn new(source: String) -> Self {
+    pub fn new(source: impl Into<String>) -> Self {
         Self {
             library: LazyHash::new(Library::default()),
             source: Source::detached(source),

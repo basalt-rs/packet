@@ -6,7 +6,7 @@ use pulldown_cmark_ast::{Ast, Tree};
 use typst::{
     diag::EcoString,
     foundations::{Content, Packed, Scope, Smart, Value},
-    layout::{BlockBody, BlockElem, Celled, Length, Ratio, Sizing, TrackSizings},
+    layout::{Celled, Length, Ratio, Sizing, TrackSizings},
     model::{
         EnumElem, EnumItem, FigureElem, HeadingElem, LinkElem, LinkTarget, ListElem, ListItem,
         ParbreakElem, TableCell, TableChild, TableElem, TableHeader, TableItem, Url,
@@ -217,19 +217,17 @@ impl<'a> MarkdownRenderer<'a> {
 
                 let val = typst::eval::eval_string(
                     self.world.track(),
-                    &*content,
+                    &content,
                     Span::detached(),
                     typst::eval::EvalMode::Math,
                     Scope::new(),
                 )
                 .unwrap();
 
-                let content = match val {
+                match val {
                     Value::Content(content) => content,
                     _ => unreachable!(),
-                };
-
-                content
+                }
             }
             Tree::DisplayMath(spanned) => {
                 let content = spanned.item.trim();
@@ -243,12 +241,10 @@ impl<'a> MarkdownRenderer<'a> {
                 )
                 .unwrap();
 
-                let content = match val {
+                match val {
                     Value::Content(content) => content,
                     _ => unreachable!(),
-                };
-
-                content
+                }
             }
         }
     }
