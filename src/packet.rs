@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{util, RawOrImport};
+use crate::RawOrImport;
 
 /// Structure represnting data for a problem
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
@@ -23,6 +23,7 @@ pub struct Problem {
 #[cfg(feature = "render")]
 impl Problem {
     pub(crate) fn as_value(&self, world: &impl typst::World) -> typst::foundations::Value {
+        use crate::util;
         use typst::foundations::Value;
 
         let mut dict = typst::foundations::Dict::new();

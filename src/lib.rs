@@ -1,8 +1,4 @@
-use std::{
-    io::{Read, Write},
-    path::PathBuf,
-    time::Duration,
-};
+use std::{io::Read, path::PathBuf, time::Duration};
 
 use language::LanguageSet;
 use miette::{Diagnostic, LabeledSpan, NamedSource, SourceCode};
@@ -300,7 +296,7 @@ impl Config {
     #[cfg(feature = "render")]
     pub fn write_pdf<W>(&self, writer: &mut W) -> std::io::Result<()>
     where
-        W: Write,
+        W: std::io::Write,
     {
         use typst::foundations::{Array, Content, Value};
 
