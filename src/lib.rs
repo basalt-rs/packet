@@ -318,20 +318,25 @@ impl Config {
             }
         };
 
-        let mut welt = render::typst::TypstWrapperWorld::new(template);
+        let mut world = render::typst::TypstWrapperWorld::new(template);
 
         let mut errs = Vec::new();
         let mut problems = Array::with_capacity(self.packet.problems.len());
         for p in &self.packet.problems {
-            match p.as_value(&welt) {
+            match p.as_value(&world) {
                 Ok(v) => problems.push(v),
                 Err(err) => errs.push(err),
             }
         }
 
-        welt.library.global.scope_mut().define("problems", problems);
+        world
+            .library
+            .global
+            .scope_mut()
+            .define("problems", problems);
 
-        welt.library
+        world
+            .library
             .global
             .scope_mut()
             .define("title", self.packet.title.as_str());
@@ -340,11 +345,17 @@ impl Config {
             .packet
             .preamble
             .as_deref()
-            .map(|s| s.content(&welt))
+            .map(|s| s.content(&world))
             .transpose()?;
-        welt.library.global.scope_mut().define("preamble", preamble);
+        world
+            .library
+            .global
+            .scope_mut()
+            .define("preamble", preamble);
 
-        let document = typst::compile(&welt).output.expect("Error compiling typst");
+        let document = typst::compile(&world)
+            .output
+            .expect("Error compiling typst");
         typst_pdf::pdf(&document, &typst_pdf::PdfOptions::default())
             .map_err(|e| std::io::Error::other(format!("{:?}", e)))
     }
