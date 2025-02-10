@@ -373,7 +373,7 @@ impl Config {
     where
         W: std::io::Write,
     {
-        // TODO: I would really love it if typst offered an API that did not have to create a vec
+        // XXX: I would really love it if typst offered an API that did not have to create a vec
         // just to render the PDF
         let vec = self.render_pdf(template)?;
         writer.write_all(&vec)

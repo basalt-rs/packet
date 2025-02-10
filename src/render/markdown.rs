@@ -6,7 +6,7 @@ use pulldown_cmark::{Alignment, CodeBlockKind, Event, Options, Parser, Tag};
 use pulldown_cmark_ast::{Ast, Tree};
 use serde::{Deserialize, Serialize};
 use typst::{
-    diag::{EcoString, SourceDiagnostic, SourceResult},
+    diag::{EcoString, SourceDiagnostic},
     foundations::{Content, Packed, Scope, Smart, Value},
     layout::{Celled, Length, Ratio, Sizing, TrackSizings},
     model::{
@@ -25,7 +25,11 @@ use crate::render::typst::TypstWrapperWorld;
 pub enum RenderError {
     #[error("Error while processing typst: {0:?}")]
     TypstError(Vec<SourceDiagnostic>),
+    #[error("HTML tags are unsupported in Markdown")]
+    UnsupportedHtml,
 }
+
+type RenderResult<T> = Result<T, RenderError>;
 
 impl From<EcoVec<SourceDiagnostic>> for RenderError {
     fn from(value: EcoVec<SourceDiagnostic>) -> Self {
@@ -84,7 +88,7 @@ impl MarkdownRenderable {
     /// Renders the given string into HTML
     ///
     /// This uses typst to fill in the maths blocks.
-    pub fn html(&self) -> Result<String, RenderError> {
+    pub fn html(&self) -> RenderResult<String> {
         let parser = Parser::new_ext(self.raw(), CMARK_OPTIONS);
         let mut errors = Vec::new();
         let parser = parser.map(|event| match event {
@@ -142,7 +146,7 @@ impl MarkdownRenderable {
     }
 
     /// Renders the given string into typst content
-    pub fn content(&self, world: &impl World) -> Result<Content, RenderError> {
+    pub fn content(&self, world: &impl World) -> RenderResult<Content> {
         render_markdown(self.raw(), world)
     }
 }
@@ -171,14 +175,14 @@ impl<'a> TypstMarkdownRenderer<'a> {
         Self { world }
     }
 
-    fn render_tree(&self, tree: Tree) -> SourceResult<Content> {
+    fn render_tree(&self, tree: Tree) -> RenderResult<Content> {
         match tree {
             Tree::Group(g) => match g.tag.item {
                 Tag::Paragraph => Ok(Content::sequence(
                     std::iter::once(Ok(Content::new(ParbreakElem::new())))
                         .chain(g.stream.0.into_iter().map(|t| self.render_tree(t)))
                         .chain(std::iter::once(Ok(Content::new(ParbreakElem::new()))))
-                        .collect::<SourceResult<Vec<_>>>()?,
+                        .collect::<RenderResult<Vec<_>>>()?,
                 )),
                 Tag::Heading { level, .. } => Ok(Content::new(
                     HeadingElem::new(self.render_ast(g.stream)?).with_level(
@@ -188,13 +192,13 @@ impl<'a> TypstMarkdownRenderer<'a> {
                     ),
                 )),
                 Tag::BlockQuote(_) => {
-                    // TODO: use block quote kind somehow?
                     // Blockquote ~ #figure()
+                    // TODO: use block quote kind somehow?
                     let content = Content::sequence(
                         std::iter::once(Ok(Content::new(ParbreakElem::new())))
                             .chain(g.stream.0.into_iter().map(|t| self.render_tree(t)))
                             .chain(std::iter::once(Ok(Content::new(ParbreakElem::new()))))
-                            .collect::<SourceResult<Vec<_>>>()?,
+                            .collect::<RenderResult<Vec<_>>>()?,
                     );
                     Ok(Content::new(FigureElem::new(content.aligned(
                         typst::layout::Alignment::H(typst::layout::HAlignment::Left),
@@ -215,16 +219,15 @@ impl<'a> TypstMarkdownRenderer<'a> {
                     };
                     Ok(Content::new(FigureElem::new(Content::new(elem))))
                 }
-                Tag::HtmlBlock => panic!("HTML blocks not supported"), // TODO: Return error
+                Tag::HtmlBlock => Err(RenderError::UnsupportedHtml),
                 Tag::List(ord) => {
-                    // TODO: Ordered lists
                     if let Some(ord) = ord {
                         let packed = g
                             .stream
                             .0
                             .into_iter()
                             .enumerate()
-                            .map(|(i, t)| -> SourceResult<_> {
+                            .map(|(i, t)| -> RenderResult<_> {
                                 match t {
                                     Tree::Group(group) => match group.tag.item {
                                         Tag::Item => Ok(Packed::new(
@@ -236,7 +239,7 @@ impl<'a> TypstMarkdownRenderer<'a> {
                                     _ => unreachable!(),
                                 }
                             })
-                            .collect::<SourceResult<Vec<_>>>()?;
+                            .collect::<RenderResult<Vec<_>>>()?;
                         Ok(Content::new(EnumElem::new(packed)))
                     } else {
                         let packed = g
@@ -244,7 +247,7 @@ impl<'a> TypstMarkdownRenderer<'a> {
                             .0
                             .into_iter()
                             .map(|t| self.render_tree(t).map(|c| c.into_packed().unwrap()))
-                            .collect::<SourceResult<_>>()?;
+                            .collect::<RenderResult<_>>()?;
                         Ok(Content::new(ListElem::new(packed)))
                     }
                 }
@@ -272,7 +275,7 @@ impl<'a> TypstMarkdownRenderer<'a> {
                                     .map(|c| c.into_packed().unwrap())
                                     .map(TableItem::Cell)
                             })
-                            .collect::<SourceResult<_>>()?,
+                            .collect::<RenderResult<_>>()?,
                     ))));
 
                     for thing in things {
@@ -291,7 +294,7 @@ impl<'a> TypstMarkdownRenderer<'a> {
                                         .map(TableItem::Cell)
                                         .map(TableChild::Item)
                                 })
-                                .collect::<SourceResult<Vec<_>>>()?,
+                                .collect::<RenderResult<Vec<_>>>()?,
                         );
                     }
 
@@ -313,7 +316,7 @@ impl<'a> TypstMarkdownRenderer<'a> {
                                 .map(|c| c.into_packed().unwrap())
                                 .map(TableItem::Cell)
                         })
-                        .collect::<SourceResult<Vec<_>>>()?;
+                        .collect::<RenderResult<_>>()?;
                     Ok(Content::new(TableHeader::new(items)))
                 }
                 Tag::TableRow => g
@@ -325,7 +328,7 @@ impl<'a> TypstMarkdownRenderer<'a> {
                             .map(|c| c.into_packed().unwrap())
                             .map(TableItem::Cell)
                     })
-                    .collect::<SourceResult<_>>()
+                    .collect::<RenderResult<_>>()
                     .map(TableHeader::new)
                     .map(Content::new),
                 Tag::TableCell => self
@@ -351,8 +354,8 @@ impl<'a> TypstMarkdownRenderer<'a> {
             Tree::Code(spanned) => Ok(Content::new(RawElem::new(RawContent::Text(
                 spanned.item.as_ref().into(),
             )))),
-            Tree::Html(_) => panic!("html is not supported"),
-            Tree::InlineHtml(_) => panic!("html is not supported"),
+            Tree::Html(_) => Err(RenderError::UnsupportedHtml),
+            Tree::InlineHtml(_) => Err(RenderError::UnsupportedHtml),
             Tree::FootnoteReference(_) => unreachable!("Feature is disabled"),
             Tree::SoftBreak(_) => Ok(Content::new(SpaceElem::new())),
             Tree::HardBreak(_) => Ok(Content::new(LinebreakElem::new())),
@@ -398,12 +401,12 @@ impl<'a> TypstMarkdownRenderer<'a> {
         }
     }
 
-    fn render_ast(&self, ast: Ast) -> SourceResult<Content> {
+    fn render_ast(&self, ast: Ast) -> RenderResult<Content> {
         Ok(Content::sequence(
             ast.0
                 .into_iter()
                 .map(|t| self.render_tree(t))
-                .collect::<SourceResult<Vec<_>>>()?,
+                .collect::<RenderResult<Vec<_>>>()?,
         ))
     }
 
@@ -420,16 +423,13 @@ impl<'a> TypstMarkdownRenderer<'a> {
         s
     }
 
-    fn render(&self, markdown: impl AsRef<str>) -> SourceResult<Content> {
+    fn render(&self, markdown: impl AsRef<str>) -> RenderResult<Content> {
         let markdown = markdown.as_ref();
         let ast = Ast::new_ext(markdown, CMARK_OPTIONS);
         self.render_ast(ast)
     }
 }
 
-pub fn render_markdown(
-    markdown: impl AsRef<str>,
-    world: &impl World,
-) -> Result<Content, RenderError> {
+pub fn render_markdown(markdown: impl AsRef<str>, world: &impl World) -> RenderResult<Content> {
     Ok(TypstMarkdownRenderer::new(world).render(markdown)?)
 }
