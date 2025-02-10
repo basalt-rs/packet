@@ -320,12 +320,15 @@ impl Config {
 
         let mut welt = render::typst::TypstWrapperWorld::new(template);
 
-        let problems: Array = self
-            .packet
-            .problems
-            .iter()
-            .map(|p| p.as_value(&welt))
-            .collect();
+        let mut errs = Vec::new();
+        let mut problems = Array::with_capacity(self.packet.problems.len());
+        for p in &self.packet.problems {
+            match p.as_value(&welt) {
+                Ok(v) => problems.push(v),
+                Err(err) => errs.push(err),
+            }
+        }
+
         welt.library.global.scope_mut().define("problems", problems);
 
         welt.library
@@ -333,7 +336,12 @@ impl Config {
             .scope_mut()
             .define("title", self.packet.title.as_str());
 
-        let preamble = self.packet.preamble.as_deref().map(|s| s.content(&welt));
+        let preamble = self
+            .packet
+            .preamble
+            .as_deref()
+            .map(|s| s.content(&welt))
+            .transpose()?;
         welt.library.global.scope_mut().define("preamble", preamble);
 
         let document = typst::compile(&welt).output.expect("Error compiling typst");

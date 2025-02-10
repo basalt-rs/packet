@@ -2,7 +2,10 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{render::markdown::MarkdownRenderable, roi, RawOrImport};
+use crate::{
+    render::markdown::{MarkdownRenderable, RenderError},
+    roi, RawOrImport,
+};
 
 /// Structure represnting data for a problem
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
@@ -21,7 +24,10 @@ pub struct Problem {
 }
 
 impl Problem {
-    pub(crate) fn as_value(&self, world: &impl typst::World) -> typst::foundations::Value {
+    pub(crate) fn as_value(
+        &self,
+        world: &impl typst::World,
+    ) -> Result<typst::foundations::Value, RenderError> {
         use crate::util;
         use typst::foundations::Value;
 
@@ -34,12 +40,12 @@ impl Problem {
         dict.insert("title".into(), util::convert(&self.title));
 
         if let Some(desc) = &self.description {
-            dict.insert("description".into(), Value::Content(desc.content(world)));
+            dict.insert("description".into(), Value::Content(desc.content(world)?));
         }
 
         dict.insert("tests".into(), util::convert(&self.tests));
 
-        Value::Dict(dict)
+        Ok(Value::Dict(dict))
     }
 }
 

@@ -26,6 +26,7 @@ typst-kit = { version = "0.12.0", features = ["embed-fonts"] }
 typst-pdf = "0.12.0"
 xxhash-rust = { version = "0.8.15", features = ["xxh3", "const_xxh3"] }
 typst-svg = "0.12.0"
+ecow = "0.2.3"
 
 
 [dev-dependencies]

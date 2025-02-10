@@ -1,11 +1,12 @@
 use std::{num::NonZero, str::FromStr};
 
 use comemo::Track;
+use ecow::EcoVec;
 use pulldown_cmark::{Alignment, CodeBlockKind, Event, Options, Parser, Tag};
 use pulldown_cmark_ast::{Ast, Tree};
 use serde::{Deserialize, Serialize};
 use typst::{
-    diag::EcoString,
+    diag::{EcoString, SourceDiagnostic, SourceResult},
     foundations::{Content, Packed, Scope, Smart, Value},
     layout::{Celled, Length, Ratio, Sizing, TrackSizings},
     model::{
@@ -19,6 +20,24 @@ use typst::{
 };
 
 use crate::render::typst::TypstWrapperWorld;
+
+#[derive(thiserror::Error, Debug, PartialEq, Eq)]
+pub enum RenderError {
+    #[error("Error while processing typst: {0:?}")]
+    TypstError(Vec<SourceDiagnostic>),
+}
+
+impl From<EcoVec<SourceDiagnostic>> for RenderError {
+    fn from(value: EcoVec<SourceDiagnostic>) -> Self {
+        Self::TypstError(value.to_vec())
+    }
+}
+
+impl From<RenderError> for std::io::Error {
+    fn from(val: RenderError) -> Self {
+        std::io::Error::other(format!("{}", val))
+    }
+}
 
 // For some reason, `Options::ENABLE_TABLES | Options::ENABLE_SMART_PUNCTUATION` is not const...
 const CMARK_OPTIONS: Options = Options::from_bits_truncate(
@@ -65,8 +84,9 @@ impl MarkdownRenderable {
     /// Renders the given string into HTML
     ///
     /// This uses typst to fill in the maths blocks.
-    pub fn html(&self) -> String {
+    pub fn html(&self) -> Result<String, RenderError> {
         let parser = Parser::new_ext(self.raw(), CMARK_OPTIONS);
+        let mut errors = Vec::new();
         let parser = parser.map(|event| match event {
             pulldown_cmark::Event::InlineMath(cow_str) => {
                 // TODO: This should parse the cow_str into a Content and somehow convert that to a
@@ -77,10 +97,16 @@ impl MarkdownRenderable {
                     cow_str
                 );
                 let world = TypstWrapperWorld::new(f);
-                // TODO: errors
-                let doc = typst::compile(&world).output.unwrap();
-                let svg = typst_svg::svg(&doc.pages[0]);
-                Event::InlineHtml(svg.into())
+                match typst::compile(&world).output {
+                    Ok(doc) => {
+                        let svg = typst_svg::svg(&doc.pages[0]);
+                        Event::InlineHtml(svg.into())
+                    }
+                    Err(err) => {
+                        errors.extend(err);
+                        Event::Text("".into())
+                    }
+                }
             }
             pulldown_cmark::Event::DisplayMath(cow_str) => {
                 // TODO: This should parse the cow_str into a Content and somehow convert that to a
@@ -93,21 +119,46 @@ impl MarkdownRenderable {
                     cow_str
                 );
                 let world = TypstWrapperWorld::new(f);
-                // TODO: errors
-                let doc = typst::compile(&world).output.unwrap();
-                let svg = typst_svg::svg(&doc.pages[0]);
-                Event::Html(svg.into())
+                match typst::compile(&world).output {
+                    Ok(doc) => {
+                        let svg = typst_svg::svg(&doc.pages[0]);
+                        Event::Html(svg.into())
+                    }
+                    Err(err) => {
+                        errors.extend(err);
+                        Event::Text("".into())
+                    }
+                }
             }
             e => e,
         });
         let mut s = String::new();
         pulldown_cmark::html::push_html(&mut s, parser);
-        s
+        if !errors.is_empty() {
+            Err(RenderError::TypstError(errors))?
+        } else {
+            Ok(s)
+        }
     }
 
     /// Renders the given string into typst content
-    pub fn content(&self, world: &impl World) -> Content {
+    pub fn content(&self, world: &impl World) -> Result<Content, RenderError> {
         render_markdown(self.raw(), world)
+    }
+}
+
+fn map_align(a: &Alignment) -> Smart<typst::layout::Alignment> {
+    match a {
+        Alignment::None => Smart::Auto,
+        Alignment::Left => {
+            Smart::Custom(typst::layout::Alignment::H(typst::layout::HAlignment::Left))
+        }
+        Alignment::Center => Smart::Custom(typst::layout::Alignment::H(
+            typst::layout::HAlignment::Center,
+        )),
+        Alignment::Right => Smart::Custom(typst::layout::Alignment::H(
+            typst::layout::HAlignment::Right,
+        )),
     }
 }
 
@@ -120,32 +171,34 @@ impl<'a> TypstMarkdownRenderer<'a> {
         Self { world }
     }
 
-    fn render_tree(&self, tree: Tree) -> Content {
+    fn render_tree(&self, tree: Tree) -> SourceResult<Content> {
         match tree {
             Tree::Group(g) => match g.tag.item {
-                Tag::Paragraph => Content::sequence(
-                    std::iter::once(Content::new(ParbreakElem::new()))
+                Tag::Paragraph => Ok(Content::sequence(
+                    std::iter::once(Ok(Content::new(ParbreakElem::new())))
                         .chain(g.stream.0.into_iter().map(|t| self.render_tree(t)))
-                        .chain(std::iter::once(Content::new(ParbreakElem::new()))),
-                ),
-                Tag::Heading { level, .. } => {
-                    Content::new(HeadingElem::new(self.render_ast(g.stream)).with_level(
+                        .chain(std::iter::once(Ok(Content::new(ParbreakElem::new()))))
+                        .collect::<SourceResult<Vec<_>>>()?,
+                )),
+                Tag::Heading { level, .. } => Ok(Content::new(
+                    HeadingElem::new(self.render_ast(g.stream)?).with_level(
                         typst::foundations::Smart::Custom(
                             NonZero::new(level as usize).expect("1 <= level <= 6"),
                         ),
-                    ))
-                }
+                    ),
+                )),
                 Tag::BlockQuote(_) => {
                     // TODO: use block quote kind somehow?
                     // Blockquote ~ #figure()
                     let content = Content::sequence(
-                        std::iter::once(Content::new(ParbreakElem::new()))
+                        std::iter::once(Ok(Content::new(ParbreakElem::new())))
                             .chain(g.stream.0.into_iter().map(|t| self.render_tree(t)))
-                            .chain(std::iter::once(Content::new(ParbreakElem::new()))),
+                            .chain(std::iter::once(Ok(Content::new(ParbreakElem::new()))))
+                            .collect::<SourceResult<Vec<_>>>()?,
                     );
-                    Content::new(FigureElem::new(content.aligned(
+                    Ok(Content::new(FigureElem::new(content.aligned(
                         typst::layout::Alignment::H(typst::layout::HAlignment::Left),
-                    )))
+                    ))))
                 }
                 Tag::CodeBlock(code_block_kind) => {
                     let content = self.render_ast_to_text(g.stream);
@@ -160,7 +213,7 @@ impl<'a> TypstMarkdownRenderer<'a> {
                             }
                         }
                     };
-                    Content::new(FigureElem::new(Content::new(elem)))
+                    Ok(Content::new(FigureElem::new(Content::new(elem))))
                 }
                 Tag::HtmlBlock => panic!("HTML blocks not supported"), // TODO: Return error
                 Tag::List(ord) => {
@@ -171,29 +224,31 @@ impl<'a> TypstMarkdownRenderer<'a> {
                             .0
                             .into_iter()
                             .enumerate()
-                            .map(|(i, t)| match t {
-                                Tree::Group(group) => match group.tag.item {
-                                    Tag::Item => Packed::new(
-                                        EnumItem::new(self.render_ast(group.stream))
-                                            .with_number(Some(ord as usize + i)),
-                                    ),
+                            .map(|(i, t)| -> SourceResult<_> {
+                                match t {
+                                    Tree::Group(group) => match group.tag.item {
+                                        Tag::Item => Ok(Packed::new(
+                                            EnumItem::new(self.render_ast(group.stream)?)
+                                                .with_number(Some(ord as usize + i)),
+                                        )),
+                                        _ => unreachable!(),
+                                    },
                                     _ => unreachable!(),
-                                },
-                                _ => unreachable!(),
+                                }
                             })
-                            .collect();
-                        Content::new(EnumElem::new(packed))
+                            .collect::<SourceResult<Vec<_>>>()?;
+                        Ok(Content::new(EnumElem::new(packed)))
                     } else {
                         let packed = g
                             .stream
                             .0
                             .into_iter()
-                            .map(|t| self.render_tree(t).into_packed().unwrap())
-                            .collect();
-                        Content::new(ListElem::new(packed))
+                            .map(|t| self.render_tree(t).map(|c| c.into_packed().unwrap()))
+                            .collect::<SourceResult<_>>()?;
+                        Ok(Content::new(ListElem::new(packed)))
                     }
                 }
-                Tag::Item => Content::new(ListItem::new(self.render_ast(g.stream))),
+                Tag::Item => Ok(Content::new(ListItem::new(self.render_ast(g.stream)?))),
                 Tag::FootnoteDefinition(_) => unreachable!("Feature is disabled"),
                 Tag::Table(align) => {
                     let mut things = g.stream.0;
@@ -212,8 +267,12 @@ impl<'a> TypstMarkdownRenderer<'a> {
                         header
                             .0
                             .into_iter()
-                            .map(|t| TableItem::Cell(self.render_tree(t).into_packed().unwrap()))
-                            .collect(),
+                            .map(|t| {
+                                self.render_tree(t)
+                                    .map(|c| c.into_packed().unwrap())
+                                    .map(TableItem::Cell)
+                            })
+                            .collect::<SourceResult<_>>()?,
                     ))));
 
                     for thing in things {
@@ -224,87 +283,85 @@ impl<'a> TypstMarkdownRenderer<'a> {
                             },
                             _ => unreachable!(),
                         };
-                        children.extend(row.into_iter().map(|t| {
-                            TableChild::Item(TableItem::Cell(
-                                self.render_tree(t).into_packed().unwrap(),
-                            ))
-                        }));
+                        children.extend_from_slice(
+                            &row.into_iter()
+                                .map(|t| {
+                                    self.render_tree(t)
+                                        .map(|c| c.into_packed().unwrap())
+                                        .map(TableItem::Cell)
+                                        .map(TableChild::Item)
+                                })
+                                .collect::<SourceResult<Vec<_>>>()?,
+                        );
                     }
 
-                    Content::new(FigureElem::new(Content::new(
+                    let columns = (0..cols).map(|_| Sizing::Auto).collect::<Vec<_>>();
+
+                    Ok(Content::new(FigureElem::new(Content::new(
                         TableElem::new(children)
-                            .with_columns(TrackSizings(
-                                (0..cols).map(|_| Sizing::Auto).collect::<Vec<_>>().into(),
-                            ))
-                            .with_align(Celled::Array(
-                                align
-                                    .iter()
-                                    .map(|a| match a {
-                                        Alignment::None => Smart::Auto,
-                                        Alignment::Left => {
-                                            Smart::Custom(typst::layout::Alignment::H(
-                                                typst::layout::HAlignment::Left,
-                                            ))
-                                        }
-                                        Alignment::Center => {
-                                            Smart::Custom(typst::layout::Alignment::H(
-                                                typst::layout::HAlignment::Center,
-                                            ))
-                                        }
-                                        Alignment::Right => {
-                                            Smart::Custom(typst::layout::Alignment::H(
-                                                typst::layout::HAlignment::Right,
-                                            ))
-                                        }
-                                    })
-                                    .collect(),
-                            )),
-                    )))
+                            .with_columns(TrackSizings(columns.into()))
+                            .with_align(Celled::Array(align.iter().map(map_align).collect())),
+                    ))))
                 }
                 Tag::TableHead => {
                     let items = g
                         .stream
                         .0
                         .into_iter()
-                        .map(|t| TableItem::Cell(self.render_tree(t).into_packed().unwrap()))
-                        .collect();
-                    Content::new(TableHeader::new(items))
+                        .map(|t| {
+                            self.render_tree(t)
+                                .map(|c| c.into_packed().unwrap())
+                                .map(TableItem::Cell)
+                        })
+                        .collect::<SourceResult<Vec<_>>>()?;
+                    Ok(Content::new(TableHeader::new(items)))
                 }
-                Tag::TableRow => {
-                    let items = g
-                        .stream
-                        .0
-                        .into_iter()
-                        .map(|t| TableItem::Cell(self.render_tree(t).into_packed().unwrap()))
-                        .collect();
-                    Content::new(TableHeader::new(items))
-                }
-                Tag::TableCell => Content::new(TableCell::new(self.render_ast(g.stream))),
-                Tag::Emphasis => self.render_ast(g.stream).emph(),
-                Tag::Strong => self.render_ast(g.stream).strong(),
-                Tag::Strikethrough => Content::new(StrikeElem::new(self.render_ast(g.stream))),
-                Tag::Link { dest_url, .. } => Content::new(LinkElem::new(
+                Tag::TableRow => g
+                    .stream
+                    .0
+                    .into_iter()
+                    .map(|t| {
+                        self.render_tree(t)
+                            .map(|c| c.into_packed().unwrap())
+                            .map(TableItem::Cell)
+                    })
+                    .collect::<SourceResult<_>>()
+                    .map(TableHeader::new)
+                    .map(Content::new),
+                Tag::TableCell => self
+                    .render_ast(g.stream)
+                    .map(TableCell::new)
+                    .map(Content::new),
+                Tag::Emphasis => self.render_ast(g.stream).map(Content::emph),
+                Tag::Strong => self.render_ast(g.stream).map(Content::strong),
+                Tag::Strikethrough => self
+                    .render_ast(g.stream)
+                    .map(StrikeElem::new)
+                    .map(Content::new),
+                Tag::Link { dest_url, .. } => Ok(Content::new(LinkElem::new(
                     LinkTarget::Dest(typst::model::Destination::Url(
                         Url::new(&*dest_url).unwrap(),
                     )),
-                    self.render_ast(g.stream),
-                )),
+                    self.render_ast(g.stream)?,
+                ))),
                 Tag::Image { .. } => todo!(),
                 Tag::MetadataBlock(_) => unreachable!("Feature is disabled"),
             },
-            Tree::Text(spanned) => Content::new(TextElem::new(spanned.item.as_ref().into())),
-            Tree::Code(spanned) => {
-                Content::new(RawElem::new(RawContent::Text(spanned.item.as_ref().into())))
-            }
+            Tree::Text(spanned) => Ok(Content::new(TextElem::new(spanned.item.as_ref().into()))),
+            Tree::Code(spanned) => Ok(Content::new(RawElem::new(RawContent::Text(
+                spanned.item.as_ref().into(),
+            )))),
             Tree::Html(_) => panic!("html is not supported"),
             Tree::InlineHtml(_) => panic!("html is not supported"),
             Tree::FootnoteReference(_) => unreachable!("Feature is disabled"),
-            Tree::SoftBreak(_) => Content::new(SpaceElem::new()),
-            Tree::HardBreak(_) => Content::new(LinebreakElem::new()),
-            Tree::Rule(_) => Content::new(LineElem::new().with_length(typst::layout::Rel {
-                rel: Ratio::new(1.),
-                abs: Length::zero(),
-            })),
+            Tree::SoftBreak(_) => Ok(Content::new(SpaceElem::new())),
+            Tree::HardBreak(_) => Ok(Content::new(LinebreakElem::new())),
+            Tree::Rule(_) => Ok(Content::new(LineElem::new().with_length(
+                typst::layout::Rel {
+                    rel: Ratio::new(1.),
+                    abs: Length::zero(),
+                },
+            ))),
             Tree::TaskListMarker(_) => unreachable!("Feature is disabled"),
             Tree::InlineMath(spanned) => {
                 let content = spanned.item;
@@ -315,11 +372,10 @@ impl<'a> TypstMarkdownRenderer<'a> {
                     Span::detached(),
                     typst::eval::EvalMode::Math,
                     Scope::new(),
-                )
-                .unwrap();
+                )?;
 
                 match val {
-                    Value::Content(content) => content,
+                    Value::Content(content) => Ok(content),
                     _ => unreachable!(),
                 }
             }
@@ -332,19 +388,23 @@ impl<'a> TypstMarkdownRenderer<'a> {
                     Span::detached(),
                     typst::eval::EvalMode::Markup,
                     self.world.library().math.scope().clone(),
-                )
-                .unwrap();
+                )?;
 
                 match val {
-                    Value::Content(content) => content,
+                    Value::Content(content) => Ok(content),
                     _ => unreachable!(),
                 }
             }
         }
     }
 
-    fn render_ast(&self, ast: Ast) -> Content {
-        Content::sequence(ast.0.into_iter().map(|t| self.render_tree(t)))
+    fn render_ast(&self, ast: Ast) -> SourceResult<Content> {
+        Ok(Content::sequence(
+            ast.0
+                .into_iter()
+                .map(|t| self.render_tree(t))
+                .collect::<SourceResult<Vec<_>>>()?,
+        ))
     }
 
     fn render_ast_to_text(&self, ast: Ast) -> EcoString {
@@ -360,13 +420,16 @@ impl<'a> TypstMarkdownRenderer<'a> {
         s
     }
 
-    fn render(&self, markdown: impl AsRef<str>) -> Content {
+    fn render(&self, markdown: impl AsRef<str>) -> SourceResult<Content> {
         let markdown = markdown.as_ref();
         let ast = Ast::new_ext(markdown, CMARK_OPTIONS);
         self.render_ast(ast)
     }
 }
 
-pub fn render_markdown(markdown: impl AsRef<str>, world: &impl World) -> Content {
-    TypstMarkdownRenderer::new(world).render(markdown)
+pub fn render_markdown(
+    markdown: impl AsRef<str>,
+    world: &impl World,
+) -> Result<Content, RenderError> {
+    Ok(TypstMarkdownRenderer::new(world).render(markdown)?)
 }
