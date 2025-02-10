@@ -5,7 +5,7 @@ port = 80
 
 # install = { import = "./install.sh" }
 install = '''
-apt-get install opam
+dnf install opam
 '''
 
 # init = { import = "./init.sh" }
