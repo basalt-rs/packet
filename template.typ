@@ -17,7 +17,9 @@
   box(line(length: 100%, stroke: 1pt))
 })
 
-#preamble
+#if type(preamble) != none [
+  #preamble
+]
 
 // Page heading
 #set page(

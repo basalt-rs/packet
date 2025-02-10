@@ -5,7 +5,7 @@ use miette::{Diagnostic, LabeledSpan, NamedSource, SourceCode};
 use packet::Packet;
 use roi::RawOrImport;
 use serde::{Deserialize, Serialize};
-use typst::foundations::{Array, Content, Value};
+use typst::foundations::Array;
 use xxhash_rust::xxh3;
 
 mod custom_serde;
@@ -320,32 +320,22 @@ impl Config {
 
         let mut welt = render::typst::TypstWrapperWorld::new(template);
 
-        let problems = self
+        let problems: Array = self
             .packet
             .problems
             .iter()
             .map(|p| p.as_value(&welt))
             .collect();
+        welt.library.global.scope_mut().define("problems", problems);
 
         welt.library
             .global
             .scope_mut()
-            .define("problems", Value::Array(problems));
+            .define("title", self.packet.title.as_str());
 
-        welt.library
-            .global
-            .scope_mut()
-            .define("title", Value::Str(self.packet.title.as_str().into()));
-
-        let preamble = Value::Content(
-            self.packet
-                .preamble
-                .as_deref()
-                .map(|s| s.content(&welt))
-                .unwrap_or_else(Content::empty),
-        );
-
+        let preamble = self.packet.preamble.as_deref().map(|s| s.content(&welt));
         welt.library.global.scope_mut().define("preamble", preamble);
+
         let document = typst::compile(&welt).output.expect("Error compiling typst");
         typst_pdf::pdf(&document, &typst_pdf::PdfOptions::default())
             .map_err(|e| std::io::Error::other(format!("{:?}", e)))

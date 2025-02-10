@@ -1,13 +1,13 @@
 use std::{num::NonZero, str::FromStr};
 
 use comemo::Track;
-use pulldown_cmark::{Alignment, CodeBlockKind, CowStr, Event, Options, Parser, Tag};
+use pulldown_cmark::{Alignment, CodeBlockKind, Event, Options, Parser, Tag};
 use pulldown_cmark_ast::{Ast, Tree};
 use serde::{Deserialize, Serialize};
 use typst::{
     diag::EcoString,
     foundations::{Content, Packed, Scope, Smart, Value},
-    layout::{Abs, Celled, Length, Page, PageElem, Ratio, Sizing, TrackSizings},
+    layout::{Celled, Length, Ratio, Sizing, TrackSizings},
     model::{
         EnumElem, EnumItem, FigureElem, HeadingElem, LinkElem, LinkTarget, ListElem, ListItem,
         ParbreakElem, TableCell, TableChild, TableElem, TableHeader, TableItem, Url,
