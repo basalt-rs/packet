@@ -21,13 +21,12 @@ use typst::{
 use crate::render::typst::TypstWrapperWorld;
 
 // For some reason, `Options::ENABLE_TABLES | Options::ENABLE_SMART_PUNCTUATION` is not const...
-const CMARK_OPTIONS: Options = Options::from_bits(
+const CMARK_OPTIONS: Options = Options::from_bits_truncate(
     1 << 1 // Options::ENABLE_TABLES
     | 1 << 5 // Options::ENABLE_SMART_PUNCTUATION
     | 1 << 3 // Options::ENABLE_STRIKETHROUGH
     | 1 << 10, // Options::ENABLE_MATH
-)
-.unwrap();
+);
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Default)]
 #[repr(transparent)]
