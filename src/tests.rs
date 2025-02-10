@@ -23,7 +23,7 @@ fn packet_files_parse_correctly() -> Result<()> {
             language: BuiltInLanguage::Python3,
             version: Version::Latest
         }),
-        config.languages.get_by_str(&"python3")
+        config.languages.get_by_str("python3")
     );
 
     assert_eq!(
@@ -31,7 +31,7 @@ fn packet_files_parse_correctly() -> Result<()> {
             language: BuiltInLanguage::Java,
             version: Version::Specific("21".into())
         }),
-        config.languages.get_by_str(&"java")
+        config.languages.get_by_str("java")
     );
 
     assert_eq!(
@@ -42,19 +42,24 @@ fn packet_files_parse_correctly() -> Result<()> {
             run: "./out".into(),
             source_file: "solution.ml".into()
         }),
-        config.languages.get_by_str(&"ocaml")
+        config.languages.get_by_str("ocaml")
     );
+
+    dbg!(config.hash());
+
     Ok(())
 }
 
 #[tokio::test]
 async fn packet_files_parse_correctly_async() -> Result<()> {
     let mut file = Cursor::new(EXAMPLE_ONE_CONTENT);
-    let _ = Config::read_async(&mut file, Some("cargo.toml")).await?;
+    let config = Config::read_async(&mut file, Some("cargo.toml")).await?;
+    dbg!(config.hash());
     Ok(())
 }
 
 #[test]
 fn default_config() {
-    let _ = Config::default();
+    let config = Config::default();
+    dbg!(config.hash());
 }

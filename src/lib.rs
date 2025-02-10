@@ -278,19 +278,26 @@ impl Config {
     }
 
     /// Generate a hash string for this config
-    pub fn hash(&self) -> String {
-        base62::encode(self.hash)
-    }
-
-    /// Write the encoded hash to any [`std::fmt::Write`]
     ///
     /// ```
-    /// # use bedrock::*;
+    /// # use bedrock::Config;
     /// # let config = Config::default();
-    /// let my_str = format!("Your hash is '{}'!", config.hash_fmt());
+    /// let hash = format!("Your hash is: {}", config.hash());
     /// ```
-    pub fn hash_fmt(&self) -> impl std::fmt::Display {
-        base62::encode_fmt(self.hash)
+    pub fn hash(&self) -> String {
+        let mut hash = self.hash;
+        const N: u64 = 36;
+        const ALPHABET: [u8; N as usize] = *b"abcdefghijklmnopqrstuvwxyz0123456789";
+        let mut out = String::with_capacity(14);
+        loop {
+            let n = (hash % N) as usize;
+            hash /= N;
+            out.push(ALPHABET[n] as char);
+            if hash == 0 {
+                break;
+            }
+        }
+        out
     }
 
     /// Render the competition information to a PDF, either using a provided template (written in
@@ -376,7 +383,7 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            hash: Default::default(),
+            hash: 3141592653589793238,
             setup: None,
             port: default_port(),
             languages: Default::default(),
