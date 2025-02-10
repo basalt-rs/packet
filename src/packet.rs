@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::RawOrImport;
+use crate::{render::markdown::MarkdownRenderable, roi, RawOrImport};
 
 /// Structure represnting data for a problem
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
@@ -15,7 +15,7 @@ pub struct Problem {
     /// The title for this specific problem
     pub title: String,
     /// The description of this problem (supports markdown)
-    pub description: Option<RawOrImport<String>>,
+    pub description: Option<RawOrImport<MarkdownRenderable, roi::Raw>>,
     /// The tests that will be used on this problem
     pub tests: Vec<Test>,
 }
@@ -34,10 +34,7 @@ impl Problem {
         dict.insert("title".into(), util::convert(&self.title));
 
         if let Some(desc) = &self.description {
-            dict.insert(
-                "description".into(),
-                Value::Content(crate::render::markdown::render_markdown(&**desc, world)),
-            );
+            dict.insert("description".into(), Value::Content(desc.content(world)));
         }
 
         dict.insert("tests".into(), util::convert(&self.tests));
@@ -70,7 +67,7 @@ pub struct Packet {
     /// Title of the packet
     pub title: String,
     /// Information about the packet that will be included at the top of the file
-    pub preamble: Option<RawOrImport<String>>,
+    pub preamble: Option<RawOrImport<MarkdownRenderable, roi::Raw>>,
     /// The list of problems for this
     pub problems: Vec<RawOrImport<Problem>>,
 }

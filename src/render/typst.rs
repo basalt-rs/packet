@@ -24,6 +24,8 @@ lazy_static::lazy_static! {
         let fonts = Fonts::searcher().include_system_fonts(false).search();
         FontsHolder { book: fonts.book.into(), fonts: fonts.fonts }
     };
+
+    static ref DEFAULT_WORLD: TypstWrapperWorld = TypstWrapperWorld::anon();
 }
 
 /// Main interface that determines the environment for Typst.
@@ -42,6 +44,15 @@ pub struct TypstWrapperWorld {
 }
 
 impl TypstWrapperWorld {
+    pub fn anon() -> Self {
+        Self {
+            library: LazyHash::new(Library::default()),
+            source: Source::detached(""),
+            time: time::OffsetDateTime::now_utc(),
+            files: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
     pub fn new(source: impl Into<String>) -> Self {
         Self {
             library: LazyHash::new(Library::default()),
@@ -60,7 +71,6 @@ impl TypstWrapperWorld {
         let path = if let Some(package) = id.package() {
             Err(typst::diag::PackageError::NotFound(package.clone()))?
         } else {
-            // Fetching file from disk
             id.vpath().resolve(&std::env::current_dir().unwrap())
         }
         .ok_or(FileError::AccessDenied)?;

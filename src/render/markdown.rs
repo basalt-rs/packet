@@ -1,12 +1,13 @@
-use std::num::NonZero;
+use std::{num::NonZero, str::FromStr};
 
 use comemo::Track;
-use pulldown_cmark::{Alignment, CodeBlockKind, Options, Tag};
+use pulldown_cmark::{Alignment, CodeBlockKind, CowStr, Event, Options, Parser, Tag};
 use pulldown_cmark_ast::{Ast, Tree};
+use serde::{Deserialize, Serialize};
 use typst::{
     diag::EcoString,
     foundations::{Content, Packed, Scope, Smart, Value},
-    layout::{Celled, Length, Ratio, Sizing, TrackSizings},
+    layout::{Abs, Celled, Length, Page, PageElem, Ratio, Sizing, TrackSizings},
     model::{
         EnumElem, EnumItem, FigureElem, HeadingElem, LinkElem, LinkTarget, ListElem, ListItem,
         ParbreakElem, TableCell, TableChild, TableElem, TableHeader, TableItem, Url,
@@ -17,11 +18,105 @@ use typst::{
     World,
 };
 
-struct MarkdownRenderer<'a> {
+use crate::render::typst::TypstWrapperWorld;
+
+// For some reason, `Options::ENABLE_TABLES | Options::ENABLE_SMART_PUNCTUATION` is not const...
+const CMARK_OPTIONS: Options = Options::from_bits(
+    1 << 1 // Options::ENABLE_TABLES
+    | 1 << 5 // Options::ENABLE_SMART_PUNCTUATION
+    | 1 << 3 // Options::ENABLE_STRIKETHROUGH
+    | 1 << 10, // Options::ENABLE_MATH
+)
+.unwrap();
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Default)]
+#[repr(transparent)]
+#[serde(transparent)]
+pub struct MarkdownRenderable(String);
+
+impl From<String> for MarkdownRenderable {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for MarkdownRenderable {
+    fn from(value: &str) -> Self {
+        Self(value.into())
+    }
+}
+
+impl FromStr for MarkdownRenderable {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self::from(s))
+    }
+}
+
+impl MarkdownRenderable {
+    pub fn from_raw(raw: impl Into<String>) -> Self {
+        Self(raw.into())
+    }
+
+    pub fn raw(&self) -> &str {
+        &self.0
+    }
+
+    /// Renders the given string into HTML
+    ///
+    /// This uses typst to fill in the maths blocks.
+    pub fn html(&self) -> String {
+        let parser = Parser::new_ext(self.raw(), CMARK_OPTIONS);
+        let parser = parser.map(|event| match event {
+            pulldown_cmark::Event::InlineMath(cow_str) => {
+                // TODO: This should parse the cow_str into a Content and somehow convert that to a
+                // page.
+                let f = format!(
+                    "#set page(width: auto, height: auto, margin: 0em)
+                    ${}$",
+                    cow_str
+                );
+                let world = TypstWrapperWorld::new(f);
+                // TODO: errors
+                let doc = typst::compile(&world).output.unwrap();
+                let svg = typst_svg::svg(&doc.pages[0]);
+                Event::InlineHtml(svg.into())
+            }
+            pulldown_cmark::Event::DisplayMath(cow_str) => {
+                // TODO: This should parse the cow_str into a Content and somehow convert that to a
+                // page.
+                let f = format!(
+                    "
+                    #set page(width: auto, height: auto, margin: 0em)
+                    $ {} $
+                    ",
+                    cow_str
+                );
+                let world = TypstWrapperWorld::new(f);
+                // TODO: errors
+                let doc = typst::compile(&world).output.unwrap();
+                let svg = typst_svg::svg(&doc.pages[0]);
+                Event::Html(svg.into())
+            }
+            e => e,
+        });
+        let mut s = String::new();
+        pulldown_cmark::html::push_html(&mut s, parser);
+        s
+    }
+
+    /// Renders the given string into typst content
+    pub fn content(&self, world: &impl World) -> Content {
+        render_markdown(self.raw(), world)
+    }
+}
+
+struct TypstMarkdownRenderer<'a> {
     world: &'a dyn World,
 }
 
-impl<'a> MarkdownRenderer<'a> {
+impl<'a> TypstMarkdownRenderer<'a> {
     fn new(world: &'a dyn World) -> Self {
         Self { world }
     }
@@ -268,16 +363,11 @@ impl<'a> MarkdownRenderer<'a> {
 
     fn render(&self, markdown: impl AsRef<str>) -> Content {
         let markdown = markdown.as_ref();
-        let options = Options::ENABLE_GFM
-            | Options::ENABLE_MATH
-            | Options::ENABLE_TABLES
-            | Options::ENABLE_SMART_PUNCTUATION
-            | Options::ENABLE_STRIKETHROUGH;
-        let ast = Ast::new_ext(markdown, options);
+        let ast = Ast::new_ext(markdown, CMARK_OPTIONS);
         self.render_ast(ast)
     }
 }
 
 pub fn render_markdown(markdown: impl AsRef<str>, world: &impl World) -> Content {
-    MarkdownRenderer::new(world).render(markdown)
+    TypstMarkdownRenderer::new(world).render(markdown)
 }

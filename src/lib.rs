@@ -51,10 +51,10 @@ pub struct Accounts {
 pub struct Setup {
     /// Specifies what commands are to be run when building the container to ensure dependencies
     /// are installed.
-    pub install: Option<RawOrImport<String>>,
+    pub install: Option<RawOrImport<String, roi::Raw>>,
     /// Specifies commands to run before running basalt-server so that dependencies are enabled
     /// properly.
-    pub init: Option<RawOrImport<String>>,
+    pub init: Option<RawOrImport<String, roi::Raw>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
@@ -319,24 +319,29 @@ impl Config {
         };
 
         let mut welt = render::typst::TypstWrapperWorld::new(template);
-        let mut arr = Array::new();
-        for problem in &self.packet.problems {
-            let dict = problem.as_value(&welt);
-            arr.push(dict)
-        }
+
+        let problems = self
+            .packet
+            .problems
+            .iter()
+            .map(|p| p.as_value(&welt))
+            .collect();
+
         welt.library
             .global
             .scope_mut()
-            .define("problems", Value::Array(arr));
+            .define("problems", Value::Array(problems));
+
         welt.library
             .global
             .scope_mut()
             .define("title", Value::Str(self.packet.title.as_str().into()));
+
         let preamble = Value::Content(
             self.packet
                 .preamble
                 .as_deref()
-                .map(|s| render::markdown::render_markdown(s, &welt))
+                .map(|s| s.content(&welt))
                 .unwrap_or_else(Content::empty),
         );
 
