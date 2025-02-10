@@ -12,7 +12,6 @@ miette = { version = "7.4.0", features = ["fancy"] }
 phf = { version = "0.11.3", features = ["macros"] }
 strum = { version = "0.26.3", features = ["derive", "phf"] }
 xxhash-rust = { version = "0.8.15", features = ["xxh3", "const_xxh3"] }
-base62 = "2.2.1"
 
 [dev-dependencies]
 bedrock = { path = ".", features = ["tokio"] }
