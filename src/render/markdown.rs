@@ -431,5 +431,5 @@ impl<'a> TypstMarkdownRenderer<'a> {
 }
 
 pub fn render_markdown(markdown: impl AsRef<str>, world: &impl World) -> RenderResult<Content> {
-    Ok(TypstMarkdownRenderer::new(world).render(markdown)?)
+    TypstMarkdownRenderer::new(world).render(markdown)
 }
