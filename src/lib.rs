@@ -310,11 +310,11 @@ impl Config {
         } else {
             #[cfg(feature = "dev")]
             {
-                std::fs::read_to_string("./template.typ").unwrap()
+                std::fs::read_to_string("./data/template.typ").unwrap()
             }
             #[cfg(not(feature = "dev"))]
             {
-                include_str!("../template.typ").into()
+                include_str!("../data/template.typ").into()
             }
         };
 

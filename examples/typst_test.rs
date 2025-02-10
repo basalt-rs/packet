@@ -3,7 +3,7 @@
 use bedrock::render::typst::TypstWrapperWorld;
 
 fn main() {
-    let welt = TypstWrapperWorld::new(include_str!("../template.typ"));
+    let welt = TypstWrapperWorld::new(include_str!("../data/template.typ"));
 
     let res = typst::eval::eval_string(
         comemo::Track::track(&welt),
