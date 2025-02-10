@@ -10,8 +10,16 @@ fn main() -> Result<(), Box<dyn Error>> {
 This is Euler's identity! blah $e ^(pi i) + 1 = 0$ blah
 
 $$
-e ^(pi i) + 1 &= 0 \
-a x^2 + b x + c &= 0
+e ^(pi i) + 1 &= 0
+$$
+
+This is factorial:
+
+$$
+"fact"(n) := cases(
+  1 &"if" n <= 0,
+   n "fact"(n - 1) &"otherwise",
+)
 $$
 "#,
     );

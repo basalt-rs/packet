@@ -187,3 +187,46 @@ visible = true
 [[packet.problems.tests]]
 input = "racecar"
 output = "racecar"
+
+
+
+
+[[packet.problems]]
+title = "Factorial"
+description = '''
+Read a number from standard input and print the factorial of that number.
+
+This is factorial:
+
+$$
+"fact"(n) := cases(
+  1 &"if" n <= 0,
+   n "fact"(n - 1) &"otherwise",
+)
+$$
+'''
+
+[[packet.problems.tests]]
+input = "0"
+output = "0"
+visible = true
+
+[[packet.problems.tests]]
+input = "1"
+output = "1"
+visible = true
+
+[[packet.problems.tests]]
+input = "2"
+output = "2"
+visible = true
+
+[[packet.problems.tests]]
+input = "3"
+output = "6"
+visible = true
+
+[[packet.problems.tests]]
+input = "4"
+output = "24"
+visible = true
