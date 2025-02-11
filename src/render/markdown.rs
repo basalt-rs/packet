@@ -5,11 +5,7 @@ use ecow::EcoVec;
 use pulldown_cmark::{Alignment, CodeBlockKind, Event, Options, Parser, Tag, TagEnd};
 use pulldown_cmark_ast::{Ast, Tree};
 use serde::{Deserialize, Serialize};
-use syntect::{
-    html::ClassStyle,
-    parsing::{SyntaxReference, SyntaxSet},
-    util::LinesWithEndings,
-};
+use syntect::{html::ClassStyle, parsing::SyntaxSet, util::LinesWithEndings};
 use typst::{
     diag::{EcoString, SourceDiagnostic},
     foundations::{Content, Packed, Scope, Smart, Value},
