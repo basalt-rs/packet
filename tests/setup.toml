@@ -1,5 +1,5 @@
 install = '''
-apt-get install opam
+dnf install opam
 '''
 
 init = '''

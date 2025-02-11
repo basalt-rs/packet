@@ -1,0 +1,232 @@
+port = 80
+
+[test_runner]
+timeout_ms = 60_000
+trim_output = true
+max_memory = { compile = 128, run = 64 }
+max_file_size = 8192
+
+[languages]
+python3 = "latest"
+java = "21"
+ocaml = { build = "ocamlc -o out solution.ml", run = "./out", source_file = "solution.ml" }
+
+[[accounts.admins]]
+name = "Teacher"
+password = "abc123"
+
+[[accounts.competitors]]
+name = "StudentOne"
+password = "123abc"
+
+[[accounts.competitors]]
+name = "StudentTwo"
+password = "deadbeef"
+
+# Specify information about the packet itself
+[packet]
+title = "This is a fun packet to demonstrate the markdown capabilities!"
+preamble = '''
+# Markdown syntax guide
+
+## Headers
+
+# This is a Heading h1
+## This is a Heading h2
+###### This is a Heading h6
+
+## Emphasis
+
+*This text will be italic*  
+_This will also be italic_
+
+**This text will be bold**  
+__This will also be bold__
+
+_You **can** combine them_
+
+## Lists
+
+### Unordered
+
+* Item 1
+* Item 2
+* Item 2a
+* Item 2b
+    * Item 3a
+    * Item 3b
+
+### Ordered
+
+1. Item 1
+2. Item 2
+3. Item 3
+    1. Item 3a
+    2. Item 3b
+
+## Links
+
+You may be using [Markdown Live Preview](https://markdownlivepreview.com/).
+
+## Blockquotes
+
+> Markdown is a lightweight markup language with plain-text-formatting syntax, created in 2004 by John Gruber with Aaron Swartz.
+>
+>> Markdown is often used to format readme files, for writing messages in online discussion forums, and to create rich text using a plain text editor.
+
+## Tables
+
+| Left columns  | Right columns |
+| ------------- |:-------------:|
+| left foo      | right foo     |
+| left bar      | right bar     |
+| left baz      | right baz     |
+
+## Blocks of code
+
+```typescript
+let message = 'Hello world';
+alert(message);
+```
+
+## Inline code
+
+This is `inline code`.
+
+## Math
+
+Axiom of Infinity:  
+There is a set $I$ that contains $emptyset$ and an element and for each $a in I$ the set $a union {a} in I$ also.
+$$
+& emptyset in I \
+& emptyset union {emptyset} in I => {emptyset} in I \
+& {emptyset} union {{emptyset}} in I => {emptyset,{emptyset}} in I \
+$$
+
+Notation: let $compose: S times S ->S$ be a binary operation: $forall a,b in S: a compose b = compose (a,b)$
+
+---
+
+Definition: $forall m,n in NN$, the relation $+: NN times NN -> NN$ is defined by:
+
+$n + 1 = n'$  
+$n + m' = (n + m)'$
+
+Set theoretic terms:
+
+1. $forall m,n in NN: ((m,n), 1) cancel(in) +$
+2. $forall n in NN: ((n, 1), m') in +$
+3. $((n, m'), k') in + <==> ((n, m), k') in +$
+
+'''
+
+[[packet.problems]]
+# import = "./problem1.toml"
+title = "Reversing a string"
+description = '''
+Reversing a string is one of the most *basic* algorithmic
+problems for a beginner computer science student to solve.
+
+Solve it.
+'''
+
+[[packet.problems.tests]]
+input = "hello"
+output = "olleh"
+visible = true
+
+[[packet.problems.tests]]
+input = "world"
+output = "dlrow"
+visible = true
+
+[[packet.problems.tests]]
+input = ""
+output = ""
+
+[[packet.problems.tests]]
+input = "aa"
+output = "aa"
+
+[[packet.problems.tests]]
+input = "racecar"
+output = "racecar"
+
+[[packet.problems]]
+title = "Lowercase String"
+description = '''
+Making a string lowercase is the second hardest computer science problem.  Most people can not do it.
+
+Perhaps you should tempt fate and attempt to solve it.
+
+Hint:
+```ts
+my_string.toLowerCase()
+```
+'''
+
+[[packet.problems.tests]]
+input = "Hello"
+output = "hello"
+visible = true
+
+[[packet.problems.tests]]
+input = "WoRlD"
+output = "world"
+visible = true
+
+[[packet.problems.tests]]
+input = ""
+output = ""
+
+[[packet.problems.tests]]
+input = "AaaAAaaAaaaaAa"
+output = "aaaaaaaaaaaaaa"
+visible = true
+
+[[packet.problems.tests]]
+input = "racecar"
+output = "racecar"
+
+
+
+
+[[packet.problems]]
+title = "Factorial"
+description = '''
+Read a number from standard input and print the factorial of that number.
+
+This is factorial:
+
+$$
+"fact"(n) := cases(
+  1 &"if" n <= 0,
+   n "fact"(n - 1) &"otherwise",
+)
+$$
+'''
+
+[[packet.problems.tests]]
+input = "0"
+output = "0"
+visible = true
+
+[[packet.problems.tests]]
+input = "1"
+output = "1"
+visible = true
+
+[[packet.problems.tests]]
+input = "2"
+output = "2"
+visible = true
+
+[[packet.problems.tests]]
+input = "3"
+output = "6"
+visible = true
+
+[[packet.problems.tests]]
+input = "4"
+output = "24"
+visible = true

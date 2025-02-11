@@ -5,7 +5,7 @@ port = 80
 
 # install = { import = "./install.sh" }
 install = '''
-apt-get install opam
+dnf install opam
 '''
 
 # init = { import = "./init.sh" }
@@ -63,7 +63,7 @@ Reversing a string is one of the most *basic* algorithmic
 problems for a beginner computer science student to solve.
 
 Solve it.
-''''
+'''
 
 [[packet.problems.tests]]
 input = "hello"
