@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 
@@ -11,9 +11,9 @@ use crate::language::Version;
 
 use super::{BuiltInLanguage, Language};
 
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct LanguageSet {
-    inner: HashSet<Language>,
+    inner: BTreeSet<Language>,
 }
 
 impl LanguageSet {
@@ -23,19 +23,13 @@ impl LanguageSet {
         }
     }
 
-    pub fn with_capacity(capacity: usize) -> Self {
-        Self {
-            inner: HashSet::with_capacity(capacity),
-        }
-    }
-
     pub fn get_by_str(&self, raw_name: &str) -> Option<&Language> {
         self.inner.iter().find(|l| l.raw_name() == raw_name)
     }
 }
 
 impl Deref for LanguageSet {
-    type Target = HashSet<Language>;
+    type Target = BTreeSet<Language>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -61,7 +55,7 @@ impl<'de> Visitor<'de> for LanguageMapVisitor {
     where
         M: MapAccess<'de>,
     {
-        let mut map = LanguageSet::with_capacity(access.size_hint().unwrap_or(0));
+        let mut map = LanguageSet::new();
 
         // TODO: Spans or something for better error messages
         while let Some((key, value)) = access.next_entry::<Cow<'_, str>, TomlLanguage>()? {

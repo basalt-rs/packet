@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
@@ -8,13 +8,13 @@ use crate::{
 };
 
 /// Structure represnting data for a problem
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, Hash)]
 #[serde(deny_unknown_fields)]
 pub struct Problem {
     /// The languages that may be used to solve this question
     ///
     /// Must be a subset of the languages listed in the Config
-    pub languages: Option<HashSet<String>>,
+    pub languages: Option<BTreeSet<String>>,
     /// The title for this specific problem
     pub title: String,
     /// The description of this problem (supports markdown)
@@ -67,7 +67,7 @@ pub struct Test {
 }
 
 /// A packet which contains configuration for problems and their tests
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, Hash)]
 #[serde(deny_unknown_fields)]
 pub struct Packet {
     /// Title of the packet

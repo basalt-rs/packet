@@ -1,4 +1,9 @@
-use std::{io::Read, path::PathBuf, time::Duration};
+use std::{
+    hash::{DefaultHasher, Hasher},
+    io::Read,
+    path::PathBuf,
+    time::Duration,
+};
 
 use language::LanguageSet;
 use miette::{Diagnostic, LabeledSpan, NamedSource, SourceCode};
@@ -203,9 +208,6 @@ impl ConfigReadError {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
-    /// Hash of the config file itself.  This is used for [`Config::hash`].
-    #[serde(skip)]
-    hash: u64,
     /// Configuration for setting up the docker container and starting the server
     pub setup: Option<RawOrImport<Setup>>,
     /// Port on which the server will be hosted
@@ -222,6 +224,18 @@ pub struct Config {
     pub test_runner: RawOrImport<TestRunner>,
 }
 
+impl std::hash::Hash for Config {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.setup.hash(state);
+        // skip port
+        // self.setup.hash(port);
+        self.languages.hash(state);
+        self.accounts.hash(state);
+        self.packet.hash(state);
+        self.test_runner.hash(state);
+    }
+}
+
 impl Config {
     /// Read config from a string
     ///
@@ -231,7 +245,7 @@ impl Config {
         file_name: Option<impl AsRef<str>>,
     ) -> Result<Self, ConfigReadError> {
         let content = content.as_ref();
-        let mut config: Self = toml_edit::de::from_str(content).map_err(|e| {
+        let config: Self = toml_edit::de::from_str(content).map_err(|e| {
             if let Some(file_name) = file_name {
                 ConfigReadError::malformed(
                     NamedSource::new(file_name, content.to_string()).with_language("TOML"),
@@ -241,7 +255,6 @@ impl Config {
                 ConfigReadError::malformed(content.to_string(), e)
             }
         })?;
-        config.hash = xxh3::xxh3_64(content.as_bytes());
         Ok(config)
     }
 
@@ -285,7 +298,9 @@ impl Config {
     /// let hash = format!("Your hash is: {}", config.hash());
     /// ```
     pub fn hash(&self) -> String {
-        let mut hash = self.hash;
+        let mut hasher = DefaultHasher::new();
+        std::hash::Hash::hash(self, &mut hasher);
+        let mut hash = hasher.finish();
         const N: u64 = 36;
         const ALPHABET: [u8; N as usize] = *b"abcdefghijklmnopqrstuvwxyz0123456789";
         let mut out = String::with_capacity(14);
@@ -383,7 +398,6 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            hash: 3141592653589793238,
             setup: None,
             port: default_port(),
             languages: Default::default(),
