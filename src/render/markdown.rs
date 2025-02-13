@@ -2,9 +2,10 @@ use std::{num::NonZero, str::FromStr};
 
 use comemo::Track;
 use ecow::EcoVec;
-use pulldown_cmark::{Alignment, CodeBlockKind, Event, Options, Parser, Tag};
+use pulldown_cmark::{Alignment, CodeBlockKind, Event, Options, Parser, Tag, TagEnd};
 use pulldown_cmark_ast::{Ast, Tree};
 use serde::{Deserialize, Serialize};
+use syntect::{html::ClassStyle, parsing::SyntaxSet, util::LinesWithEndings};
 use typst::{
     diag::{EcoString, SourceDiagnostic},
     foundations::{Content, Packed, Scope, Smart, Value},
@@ -91,50 +92,90 @@ impl MarkdownRenderable {
     pub fn html(&self) -> RenderResult<String> {
         let parser = Parser::new_ext(self.raw(), CMARK_OPTIONS);
         let mut errors = Vec::new();
-        let parser = parser.map(|event| match event {
-            pulldown_cmark::Event::InlineMath(cow_str) => {
-                // TODO: This should parse the cow_str into a Content and somehow convert that to a
-                // page.
-                let f = format!(
-                    "#set page(width: auto, height: auto, margin: 0em)
+        let mut current_code = None;
+        let syntax_set = SyntaxSet::load_defaults_newlines();
+        let parser = parser.flat_map(|event| -> Box<dyn Iterator<Item = Event>> {
+            match event {
+                pulldown_cmark::Event::InlineMath(cow_str) => {
+                    // TODO: This should parse the cow_str into a Content and somehow convert that to a
+                    // page.
+                    let f = format!(
+                        "#set page(width: auto, height: auto, margin: 0em)
                     ${}$",
-                    cow_str
-                );
-                let world = TypstWrapperWorld::new(f);
-                match typst::compile(&world).output {
-                    Ok(doc) => {
-                        let svg = typst_svg::svg(&doc.pages[0]);
-                        Event::InlineHtml(svg.into())
-                    }
-                    Err(err) => {
-                        errors.extend(err);
-                        Event::Text("".into())
+                        cow_str
+                    );
+                    let world = TypstWrapperWorld::new(f);
+                    match typst::compile(&world).output {
+                        Ok(doc) => {
+                            let svg = typst_svg::svg(&doc.pages[0]);
+                            Box::new(std::iter::once(Event::InlineHtml(svg.into())))
+                        }
+                        Err(err) => {
+                            errors.extend(err);
+                            Box::new(std::iter::once(Event::Text("".into())))
+                        }
                     }
                 }
-            }
-            pulldown_cmark::Event::DisplayMath(cow_str) => {
-                // TODO: This should parse the cow_str into a Content and somehow convert that to a
-                // page.
-                let f = format!(
-                    "
+                pulldown_cmark::Event::DisplayMath(cow_str) => {
+                    // TODO: This should parse the cow_str into a Content and somehow convert that to a
+                    // page.
+                    let f = format!(
+                        "
                     #set page(width: auto, height: auto, margin: 0em)
                     $ {} $
                     ",
-                    cow_str
-                );
-                let world = TypstWrapperWorld::new(f);
-                match typst::compile(&world).output {
-                    Ok(doc) => {
-                        let svg = typst_svg::svg(&doc.pages[0]);
-                        Event::Html(svg.into())
-                    }
-                    Err(err) => {
-                        errors.extend(err);
-                        Event::Text("".into())
+                        cow_str
+                    );
+                    let world = TypstWrapperWorld::new(f);
+                    match typst::compile(&world).output {
+                        Ok(doc) => {
+                            let svg = typst_svg::svg(&doc.pages[0]);
+                            Box::new(std::iter::once(Event::Html(svg.into())))
+                        }
+                        Err(err) => {
+                            errors.extend(err);
+
+                            Box::new(std::iter::once(Event::Text("".into())))
+                        }
                     }
                 }
+                pulldown_cmark::Event::Start(Tag::CodeBlock(kind)) => {
+                    let lang = match kind {
+                        CodeBlockKind::Indented => String::new(),
+                        CodeBlockKind::Fenced(cow_str) => cow_str.to_string(),
+                    };
+
+                    let syntax = syntax_set
+                        .find_syntax_by_name(&lang)
+                        .or_else(|| syntax_set.find_syntax_by_extension(&lang))
+                        .unwrap_or_else(|| syntax_set.find_syntax_plain_text());
+                    current_code = Some(syntect::html::ClassedHTMLGenerator::new_with_class_style(
+                        syntax,
+                        &syntax_set,
+                        ClassStyle::Spaced,
+                    ));
+                    Box::new(std::iter::empty())
+                }
+                pulldown_cmark::Event::Text(t) => {
+                    if let Some(ref mut code) = current_code {
+                        for line in LinesWithEndings::from(&t) {
+                            code.parse_html_for_line_which_includes_newline(line)
+                                .unwrap();
+                        }
+                        Box::new(std::iter::empty())
+                    } else {
+                        Box::new(std::iter::once(Event::Text(t)))
+                    }
+                }
+                pulldown_cmark::Event::End(TagEnd::CodeBlock) => {
+                    let code = current_code.take().expect("Can't have end without start");
+                    let out = code.finalize();
+                    Box::new(std::iter::once(Event::Html(
+                        format!("<pre>{}</pre>", out).into(),
+                    )))
+                }
+                e => Box::new(std::iter::once(e)),
             }
-            e => e,
         });
         let mut s = String::new();
         pulldown_cmark::html::push_html(&mut s, parser);
